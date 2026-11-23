@@ -95,6 +95,7 @@ public class PlayerBody : MonoBehaviour
 
     private Animator animator;
     private Camera viewCamera;
+    private PlayerParry parry;
     private Rigidbody rb;
     private Transform hiddenBone;
     private Transform[] clearanceBones;
@@ -122,6 +123,7 @@ public class PlayerBody : MonoBehaviour
 
         if (controller == null) controller = GetComponentInParent<FirstPersonController>();
         if (spellCaster == null) spellCaster = GetComponentInParent<SpellCaster>();
+        parry = GetComponentInParent<PlayerParry>();
         if (cameraTransform == null && Camera.main != null) cameraTransform = Camera.main.transform;
         rb = controller != null ? controller.GetComponent<Rigidbody>() : GetComponentInParent<Rigidbody>();
         if (cameraTransform != null) viewCamera = cameraTransform.GetComponent<Camera>();
@@ -162,12 +164,32 @@ public class PlayerBody : MonoBehaviour
     private void OnEnable()
     {
         if (spellCaster != null) spellCaster.Cast += OnSpellCast;
+        if (parry != null)
+        {
+            parry.WindowOpened += OnParryWindow;
+            parry.Parried += OnParried;
+        }
     }
 
     private void OnDisable()
     {
         if (spellCaster != null) spellCaster.Cast -= OnSpellCast;
+        if (parry != null)
+        {
+            parry.WindowOpened -= OnParryWindow;
+            parry.Parried -= OnParried;
+        }
     }
+
+    // Parry uses the same left-hand thrust as casting: snap the palm out for the whole window.
+    private void OnParryWindow()
+    {
+        castHoldUntil = Time.time + parry.WindowDuration;
+        castWeight = Mathf.Max(castWeight, 0.6f);
+        castKick = 1f;
+    }
+
+    private void OnParried(SpellProjectile p) => castKick = 1.5f;
 
     private void OnSpellCast(Spell spell)
     {

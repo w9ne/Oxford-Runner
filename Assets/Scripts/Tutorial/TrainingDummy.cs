@@ -15,6 +15,7 @@ public class TrainingDummy : MonoBehaviour, IDamageable
 
     public event Action<TrainingDummy> Died;
     public bool IsDead { get; private set; }
+    public Faction Faction => Faction.Enemy;
     public float Health { get; private set; }
 
     private Renderer[] renderers;
@@ -33,6 +34,8 @@ public class TrainingDummy : MonoBehaviour, IDamageable
         basePos = transform.position;
         phase = UnityEngine.Random.value * Mathf.PI * 2f;
     }
+
+    public void TakeDamage(DamageInfo info) => TakeDamage(info.amount);
 
     public void TakeDamage(float amount)
     {

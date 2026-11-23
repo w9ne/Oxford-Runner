@@ -192,7 +192,14 @@ MonoBehaviour:
   moveSpeed: 3.5
   stoppingDistance: 8
   turnSpeed: 8
+  onlyReflectedDamage: 0
+  attackSpell: {fileID: 11400000, guid: feed977fc998dc6e399cee602fce02a7, type: 2}
   fireInterval: 3
+  windupTime: 0.6
+  attackRange: 35
+  muzzleOffset: {x: 0, y: 1.1, z: 0.7}
+  telegraphRenderer: {fileID: 2935608268867257161}
+  telegraphColor: {r: 1, g: 0.2, b: 0.9, a: 1}
 --- !u!1 &9178927656557242087
 GameObject:
   m_ObjectHideFlags: 0

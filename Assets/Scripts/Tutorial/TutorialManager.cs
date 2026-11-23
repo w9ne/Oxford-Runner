@@ -27,6 +27,7 @@ public class TutorialManager : MonoBehaviour
 
     // UI
     private CanvasGroup promptGroup;
+    private RectTransform card;
     private Text stepLabel, titleText, bodyText, extraText, timerText, toastText;
     private CanvasGroup toastGroup;
     private Coroutine promptFade, toastFade;
@@ -77,8 +78,18 @@ public class TutorialManager : MonoBehaviour
         titleText.text = step.title.ToUpperInvariant();
         bodyText.text = step.instructions;
         extraText.text = "";
+        LayoutCard();
         if (promptFade != null) StopCoroutine(promptFade);
         promptFade = StartCoroutine(Pop(promptGroup));
+    }
+
+    // Size the card to its text so long instructions never overlap the progress line.
+    private void LayoutCard()
+    {
+        float body = Mathf.Max(bodyText.preferredHeight, 28f);
+        bodyText.rectTransform.sizeDelta = new Vector2(bodyText.rectTransform.sizeDelta.x, body);
+        extraText.rectTransform.anchoredPosition = new Vector2(28f, -100f - body - 8f);
+        card.sizeDelta = new Vector2(card.sizeDelta.x, 100f + body + 8f + 40f);
     }
 
     private void OnRespawned()
@@ -106,6 +117,7 @@ public class TutorialManager : MonoBehaviour
         titleText.text = FormatTime(time) + (newBest ? "  NEW BEST!" : "");
         bodyText.text = $"Best: {FormatTime(best)}     Checkpoint respawns: {respawns}";
         extraText.text = "Loading the arena...";
+        LayoutCard();
         if (promptFade != null) StopCoroutine(promptFade);
         promptFade = StartCoroutine(Pop(promptGroup));
         StartCoroutine(LoadAfter(nextScene, resultsDuration));
@@ -170,7 +182,7 @@ public class TutorialManager : MonoBehaviour
         scaler.matchWidthOrHeight = 0.5f;
 
         // Prompt card (top centre)
-        var card = Panel(canvasGO.transform, "PromptCard", new Vector2(0.5f, 1f), new Vector2(760f, 190f), new Color(0.05f, 0.05f, 0.09f, 0.78f));
+        card = Panel(canvasGO.transform, "PromptCard", new Vector2(0.5f, 1f), new Vector2(760f, 190f), new Color(0.05f, 0.05f, 0.09f, 0.78f));
         promptGroup = card.gameObject.AddComponent<CanvasGroup>();
         var stripe = Panel(card, "Accent", new Vector2(0.5f, 1f), new Vector2(760f, 5f), accent);
         stripe.anchoredPosition = Vector2.zero;

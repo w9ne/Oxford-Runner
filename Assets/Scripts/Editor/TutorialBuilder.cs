@@ -12,7 +12,8 @@ using UnityEngine;
 ///
 /// The course runs along +Z. Gap sizes are chosen so each station needs the skill it teaches:
 ///   jump 4 m | double-jump ledge 2.2 m | dash gap 10 m | slide tunnel | slide-jump gap 15 m |
-///   wall-run gap 14 m | wall-jump corridor (+3 m climb) | 5 targets behind a gate | portal
+///   wall-run gap 14 m | wall-jump corridor (+3 m climb) | 5 targets behind a gate |
+///   parry a sentinel's bolt back into it | portal
 /// </summary>
 public static class TutorialBuilder
 {
@@ -28,6 +29,7 @@ public static class TutorialBuilder
         public string title, text;
         public float zStart, zEnd;              // trigger span along Z
         public float floorY;                    // top of the floor the player stands on in this zone
+        public TutorialGate gateRef;            // optional gate whose progress the prompt shows
     }
 
     [MenuItem("Oxford Runner/Build Tutorial Scene")]
@@ -102,14 +104,26 @@ public static class TutorialBuilder
         var gateGO = Graybox.Box(course, "Gate", new Vector3(0f, 4f + 3f, 164.75f), new Vector3(20f, 6f, 0.5f), Graybox.Door);
         gateGO.isStatic = false;   // it moves when opening
         var gate = gateGO.AddComponent<TutorialGate>();
-        SetArray(gate, "targets", dummies.Cast<Object>().ToArray());
-        stations.Add(new Station { title = "Cast", zStart = 139f, zEnd = 150f, floorY = 4f,
+        SetArray(gate, "targets", dummies.Select(d => (Object)d.gameObject).ToArray());
+        stations.Add(new Station { title = "Cast", zStart = 139f, zEnd = 150f, floorY = 4f, gateRef = gate,
             text = "LEFT CLICK to cast a fireball from your hand.\nDestroy all 5 targets to open the gate." });
 
-        // ---- 10. Exit portal -----------------------------------------------------------------
-        Platform(course, "P9_Exit", 165f, 177f, 4f);
-        BuildPortal(course, new Vector3(0f, 4f, 173f));
-        stations.Add(new Station { title = "Ready", zStart = 165f, zEnd = 170f, floorY = 4f,
+        // ---- 10. Parry (a sentinel that only parried bolts can hurt) ----------------------------
+        Platform(course, "P9_ParryRange", 165f, 195f, 4f, width: 14f);
+        var sentinel = Sentinel(course, new Vector3(0f, 4f, 189f));
+        Graybox.Box(course, "Sentinel_Pedestal", new Vector3(0f, 4.5f, 189f), new Vector3(3f, 1f, 3f), Graybox.Wall);
+        var gate2GO = Graybox.Box(course, "Gate_Parry", new Vector3(0f, 4f + 3f, 194.75f), new Vector3(14f, 6f, 0.5f), Graybox.Door);
+        gate2GO.isStatic = false;
+        var gate2 = gate2GO.AddComponent<TutorialGate>();
+        SetArray(gate2, "targets", new Object[] { sentinel });
+        stations.Add(new Station { title = "Parry", zStart = 165f, zEnd = 172f, floorY = 4f, gateRef = gate2,
+            text = "RIGHT CLICK just before a bolt hits to parry it back where you aim.\n" +
+                   "Only parried bolts hurt the sentinel. Missing = 2s cooldown." });
+
+        // ---- 11. Exit portal -----------------------------------------------------------------
+        Platform(course, "P10_Exit", 195f, 207f, 4f);
+        BuildPortal(course, new Vector3(0f, 4f, 203f));
+        stations.Add(new Station { title = "Ready", zStart = 195f, zEnd = 200f, floorY = 4f,
             text = "That's everything. Step into the portal to enter the arena." });
 
         // ---- Steps, checkpoint pads, kill plane ----------------------------------------------
@@ -118,14 +132,14 @@ public static class TutorialBuilder
         {
             var s = stations[i];
             float zMid = (s.zStart + s.zEnd) * 0.5f;
-            float w = s.title == "Cast" ? 20f : Width;
+            float w = s.title == "Cast" ? 20f : s.title == "Parry" ? 14f : Width;
             var trig = Graybox.Trigger(stepsRoot, $"Step_{i + 1:00}_{s.title.Replace(' ', '_')}",
                 new Vector3(0f, s.floorY + 2.5f, zMid), new Vector3(w, 5f, s.zEnd - s.zStart));
             var step = trig.gameObject.AddComponent<TutorialStep>();
             step.order = i + 1;
             step.title = s.title;
             step.instructions = s.text;
-            if (s.title == "Cast") step.gate = gate;
+            step.gate = s.gateRef;
 
             var spawn = new GameObject("Respawn").transform;
             spawn.SetParent(trig.transform, false);
@@ -190,6 +204,27 @@ public static class TutorialBuilder
         go.transform.position = pos;
         go.GetComponent<MeshRenderer>().sharedMaterial = Graybox.Enemy;
         return go.AddComponent<TrainingDummy>();
+    }
+
+    private const string EnemyPrefabPath = "Assets/Prefabs/Enemy.prefab";
+
+    /// <summary>Stationary enemy that keeps firing parryable bolts and only takes reflected damage.</summary>
+    private static GameObject Sentinel(Transform parent, Vector3 pedestalTop)
+    {
+        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(EnemyPrefabPath);
+        var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
+        go.name = "Sentinel";
+        go.transform.SetPositionAndRotation(pedestalTop + Vector3.up * 2f, Quaternion.Euler(0f, 180f, 0f));
+        var so = new SerializedObject(go.GetComponent<Enemy>());
+        so.FindProperty("maxHealth").floatValue = 30f;          // one parried bolt (10 x 3)
+        so.FindProperty("moveSpeed").floatValue = 0f;
+        so.FindProperty("onlyReflectedDamage").boolValue = true;
+        so.FindProperty("fireInterval").floatValue = 2.2f;
+        so.FindProperty("windupTime").floatValue = 0.8f;
+        so.FindProperty("attackRange").floatValue = 26f;
+        so.ApplyModifiedPropertiesWithoutUndo();
+        go.GetComponent<Rigidbody>().isKinematic = true;
+        return go;
     }
 
     private static void BuildPortal(Transform parent, Vector3 basePos)

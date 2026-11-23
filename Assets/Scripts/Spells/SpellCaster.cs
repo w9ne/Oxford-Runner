@@ -52,20 +52,7 @@ public class SpellCaster : MonoBehaviour
         return true;
     }
 
-    private Vector3 AimDirection(Vector3 origin)
-    {
-        Vector3 target = aimCamera.position + aimCamera.forward * maxAimDistance;
-        var hits = Physics.RaycastAll(aimCamera.position, aimCamera.forward, maxAimDistance, ~0, QueryTriggerInteraction.Ignore);
-        float best = float.MaxValue;
-        foreach (var h in hits)
-        {
-            if (h.collider.transform.IsChildOf(transform)) continue;
-            if (h.distance < best) { best = h.distance; target = h.point; }
-        }
-        // Very close targets: fire straight from the camera direction to avoid odd angles.
-        if (best < 1.5f) return aimCamera.forward;
-        return (target - origin).normalized;
-    }
+    private Vector3 AimDirection(Vector3 origin) => Aim.DirectionFrom(origin, aimCamera, transform, maxAimDistance);
 
     public float CooldownRemaining(Spell spell)
     {

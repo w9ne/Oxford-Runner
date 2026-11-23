@@ -19,6 +19,7 @@ MonoBehaviour:
   speed: 35
   lifetime: 3
   hitRadius: 0.25
+  parryable: 0
   damage: 15
   impactRadius: 2
   impactVfx: {fileID: 3660790735904809363, guid: da55c60747b805c79a4e07c485c0ead5, type: 3}

@@ -2,34 +2,36 @@ using System.Collections;
 using UnityEngine;
 
 /// <summary>
-/// A barrier that sinks into the ground once every linked training dummy is destroyed.
+/// A barrier that sinks into the ground once every linked target is dead or destroyed.
+/// Targets can be anything implementing <see cref="IDamageable"/> (training dummies, enemies...).
 /// </summary>
 public class TutorialGate : MonoBehaviour
 {
-    [SerializeField] private TrainingDummy[] targets;
+    [SerializeField] private GameObject[] targets;
     [SerializeField] private float openDuration = 1.2f;
 
     public int Total => targets != null ? targets.Length : 0;
     public int Remaining { get; private set; }
     public bool IsOpen { get; private set; }
 
-    private void Start()
+    private void Start() => Refresh();
+
+    private void Update()
     {
-        Remaining = 0;
-        foreach (var t in targets)
-        {
-            if (t == null || t.IsDead) continue;
-            Remaining++;
-            t.Died += OnTargetDied;
-        }
-        if (Remaining == 0) Open();
+        if (!IsOpen) Refresh();
     }
 
-    private void OnTargetDied(TrainingDummy dummy)
+    private void Refresh()
     {
-        dummy.Died -= OnTargetDied;
-        Remaining = Mathf.Max(0, Remaining - 1);
-        if (Remaining == 0) Open();
+        int alive = 0;
+        foreach (var t in targets)
+        {
+            if (t == null) continue;                               // destroyed
+            var d = t.GetComponent<IDamageable>();
+            if (d != null && !d.IsDead) alive++;
+        }
+        Remaining = alive;
+        if (alive == 0) Open();
     }
 
     private void Open()

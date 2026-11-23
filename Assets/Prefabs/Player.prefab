@@ -1409,6 +1409,9 @@ GameObject:
   - component: {fileID: 925586274951066530}
   - component: {fileID: 7010270845613323428}
   - component: {fileID: 7108791423533125047}
+  - component: {fileID: 2107084887063393396}
+  - component: {fileID: 4614493409031626940}
+  - component: {fileID: 8938649440199942127}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -1552,6 +1555,58 @@ MonoBehaviour:
   castPoint: {fileID: 2318941198875632070}
   maxAimDistance: 200
   showCrosshair: 1
+--- !u!114 &2107084887063393396
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5213565085191893834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d61a4631cb2c3a4b9018ab8ad6b1ba8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
+  maxHealth: 100
+  invulnerabilityTime: 0.25
+--- !u!114 &4614493409031626940
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5213565085191893834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b858b2cece9d2e74387370c8f37470b8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerParry
+  mouseButton: 1
+  window: 0.3
+  missCooldown: 2
+  catchRadius: 2.5
+  view: {fileID: 2237378683224332013}
+  reflectOrigin: {fileID: 2318941198875632070}
+  speedMultiplier: 2
+  damageMultiplier: 3
+  reflectedTint: {r: 0.35, g: 0.9, b: 1, a: 1}
+  healOnParry: 10
+  hitStopDuration: 0.07
+  hitStopTimeScale: 0.05
+--- !u!114 &8938649440199942127
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5213565085191893834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3210621d261691bd4a4d620372a78861, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerHUD
+  health: {fileID: 2107084887063393396}
+  parry: {fileID: 4614493409031626940}
 --- !u!1 &5438330228399762813
 GameObject:
   m_ObjectHideFlags: 0
