@@ -112,3 +112,10 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Asset Store packs (licensed; not redistributable in a public repo).
+# Re-import from the Unity Asset Store / Package Manager > My Assets after cloning.
+/[Aa]ssets/Kevin Iglesias/
+/[Aa]ssets/Kevin Iglesias.meta
+/[Aa]ssets/LowPolyDungeonsLite/
+/[Aa]ssets/LowPolyDungeonsLite.meta
