@@ -99,6 +99,7 @@ public class FirstPersonController : MonoBehaviour
     public bool IsWallRunning => isWallRunning;
     public bool IsDashing => isDashing;
     public bool IsSliding => isSliding;
+    public int WallSide => isWallRunning ? wallSide : 0;   // -1 left, +1 right, 0 none
 
     private void Awake()
     {

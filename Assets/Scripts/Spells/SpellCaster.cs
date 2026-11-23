@@ -18,6 +18,9 @@ public class SpellCaster : MonoBehaviour
     private readonly Dictionary<Spell, float> readyTime = new Dictionary<Spell, float>();
     private int selected;
 
+    /// <summary>Raised after a spell is successfully cast (used for hand/book animation, audio, etc).</summary>
+    public event System.Action<Spell> Cast;
+
     public Spell CurrentSpell => spells.Count > 0 ? spells[selected] : null;
     public int UnlockedCount => Mathf.Min(unlockedCount, spells.Count);
 
@@ -45,6 +48,7 @@ public class SpellCaster : MonoBehaviour
         Vector3 dir = AimDirection(origin);
         spell.Cast(this, origin, dir);
         readyTime[spell] = Time.time + spell.cooldown;
+        Cast?.Invoke(spell);
         return true;
     }
 
@@ -67,6 +71,8 @@ public class SpellCaster : MonoBehaviour
     {
         return readyTime.TryGetValue(spell, out float t) ? Mathf.Max(0f, t - Time.time) : 0f;
     }
+
+    public void SetCastPoint(Transform point) => castPoint = point != null ? point : aimCamera;
 
     public void UnlockNext() => unlockedCount = Mathf.Min(unlockedCount + 1, spells.Count);
 
