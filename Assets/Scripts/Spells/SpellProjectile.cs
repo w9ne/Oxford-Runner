@@ -90,11 +90,11 @@ public class SpellProjectile : MonoBehaviour
     private void DealAreaDamage(Vector3 point)
     {
         int count = Physics.OverlapSphereNonAlloc(point, spell.impactRadius, overlapBuffer, ~0, QueryTriggerInteraction.Ignore);
-        var damaged = new System.Collections.Generic.HashSet<Enemy>();
+        var damaged = new System.Collections.Generic.HashSet<IDamageable>();
         for (int i = 0; i < count; i++)
         {
-            var enemy = overlapBuffer[i].GetComponentInParent<Enemy>();
-            if (enemy != null && damaged.Add(enemy)) enemy.TakeDamage(spell.damage);
+            var target = overlapBuffer[i].GetComponentInParent<IDamageable>();
+            if (target != null && !target.IsDead && damaged.Add(target)) target.TakeDamage(spell.damage);
         }
     }
 

@@ -197,6 +197,26 @@ public class FirstPersonController : MonoBehaviour
         else Move();
     }
 
+    /// <summary>
+    /// Instantly moves the player (checkpoint respawns, level starts), clearing momentum and
+    /// any dash / slide / wall-run state, and facing the given yaw.
+    /// </summary>
+    public void Teleport(Vector3 position, float facingYaw)
+    {
+        if (isSliding) StopSlide();
+        if (isWallRunning) StopWallRun();
+        isDashing = false;
+        rb.useGravity = true;
+        rb.position = position;
+        transform.position = position;
+        rb.linearVelocity = Vector3.zero;
+        yaw = facingYaw;
+        pitch = 0f;
+        transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+        jumpQueued = dashQueued = false;
+        lastWall = null;
+    }
+
     // ---------- Ground ----------
     private void CheckGround()
     {

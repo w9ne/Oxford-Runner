@@ -19,8 +19,6 @@ using UnityEngine;
 /// </summary>
 public static class ArenaBuilder
 {
-    private const string MatDir = "Assets/Materials/";
-    private const string WallRunTag = "WallRun";
     private const float LaneHalfWidth = 6f;        // keep |x| or |z| below this clear for enemies
     private const float ArenaHalf = 48f;           // usable half-size inside the outer walls
 
@@ -38,10 +36,10 @@ public static class ArenaBuilder
             return;
         }
 
-        wallRunMat = AssetDatabase.LoadAssetAtPath<Material>(MatDir + "Graybox_WallRun.mat");
-        platformMat = AssetDatabase.LoadAssetAtPath<Material>(MatDir + "Graybox_Platform.mat");
-        wallMat = AssetDatabase.LoadAssetAtPath<Material>(MatDir + "Graybox_Wall.mat");
-        goalMat = AssetDatabase.LoadAssetAtPath<Material>(MatDir + "Graybox_Goal.mat");
+        wallRunMat = Graybox.WallRun;
+        platformMat = Graybox.Platform;
+        wallMat = Graybox.Wall;
+        goalMat = Graybox.Goal;
 
         // Clear the old course (iterate backwards since we're destroying children).
         for (int i = arena.transform.childCount - 1; i >= 0; i--)
@@ -248,24 +246,9 @@ public static class ArenaBuilder
     private static float Sq(float v) => v * v;
 
     // ------------------------------------------------------------------ helpers
-    private static Transform Group(Transform parent, string name)
-    {
-        var t = new GameObject(name).transform;
-        t.SetParent(parent, false);
-        return t;
-    }
+    private static Transform Group(Transform parent, string name) => Graybox.Group(parent, name);
 
     private static GameObject Box(Transform parent, string name, Vector3 center, Vector3 size, Material mat,
                                   bool wallRun = false, float yaw = 0f)
-    {
-        var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        go.name = name;
-        go.transform.SetParent(parent, false);
-        go.transform.SetPositionAndRotation(center, Quaternion.Euler(0f, yaw, 0f));
-        go.transform.localScale = size;
-        if (mat != null) go.GetComponent<MeshRenderer>().sharedMaterial = mat;
-        if (wallRun) go.tag = WallRunTag;
-        go.isStatic = true;
-        return go;
-    }
+        => Graybox.Box(parent, name, center, size, mat, wallRun, yaw);
 }

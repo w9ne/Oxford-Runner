@@ -7,7 +7,7 @@ using UnityEngine;
 /// Shooting spells will be added later; fireInterval is stored for that.
 /// </summary>
 [RequireComponent(typeof(Rigidbody), typeof(CapsuleCollider))]
-public class Enemy : MonoBehaviour
+public class Enemy : MonoBehaviour, IDamageable
 {
     [SerializeField] private float maxHealth = 30f;
     [SerializeField] private float moveSpeed = 3.5f;
