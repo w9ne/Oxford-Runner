@@ -99,6 +99,10 @@ public class FirstPersonController : MonoBehaviour
     public bool IsWallRunning => isWallRunning;
     public bool IsDashing => isDashing;
     public bool IsSliding => isSliding;
+    /// <summary>Holds the slide as if the key were down (for testing / scripted sequences).</summary>
+    public bool ForceSlideHeld { get; set; }
+    /// <summary>Overrides WASD input when set (for testing / scripted sequences).</summary>
+    public Vector2? ForceMoveInput { get; set; }
     public int WallSide => isWallRunning ? wallSide : 0;   // -1 left, +1 right, 0 none
 
     private void Awake()
@@ -145,12 +149,12 @@ public class FirstPersonController : MonoBehaviour
         if (Input.GetMouseButtonDown(0) && Cursor.lockState != CursorLockMode.Locked)
         { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
 
-        moveInput = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+        moveInput = ForceMoveInput ?? new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
         if (moveInput.sqrMagnitude > 1f) moveInput.Normalize();
 
         if (Input.GetKeyDown(KeyCode.Space)) jumpQueued = true;
         if (Input.GetKeyDown(KeyCode.LeftShift)) dashQueued = true;
-        slideHeld = Input.GetKey(slideKey);
+        slideHeld = Input.GetKey(slideKey) || ForceSlideHeld;
     }
 
     private void LateUpdate()

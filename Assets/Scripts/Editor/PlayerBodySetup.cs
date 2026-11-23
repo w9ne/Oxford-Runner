@@ -13,7 +13,7 @@ public static class PlayerBodySetup
 {
     private const string KI = "Assets/Kevin Iglesias/Human Animations/";
     private const string ModelPrefab = KI + "Unity Demo Scenes/Human Spellcasting Animations/Prefabs/HumanM_Dummy_Purple.prefab";
-    private const string BookPrefab = KI + "Unity Demo Scenes/Human Spellcasting Animations/Prefabs/Human_MageBook.prefab";
+    private const string BookPrefab = "Assets/Blue Olive Studio/Magic Spellbook & Book Stand \u2013 Wizard Props/Built-In/Magic Book-Opened 1.prefab";
     private const string RightArmMask = KI + "Models/Avatar Masks/Arms/Human Arm Right Mask.mask";
     private const string Run = KI + "Animations/Male/Movement/Run/HumanM@Run01_";
     private const string IdleClip = KI + "Animations/Male/Idles/HumanM@Idle01.fbx";
@@ -22,9 +22,13 @@ public static class PlayerBodySetup
     private const string ControllerPath = "Assets/Animations/PlayerBody.controller";
     private const string BodyName = "PlayerBody";
 
-    // Book placement on the right hand bone (taken from the asset's demo scene).
-    private static readonly Vector3 BookLocalPos = new Vector3(0.078f, 0.023f, 0.045f);
-    private static readonly Quaternion BookLocalRot = new Quaternion(-0.6875358f, -0.72385466f, -0.03946614f, -0.042088166f);
+    // Open book placement on the right hand bone (tuned in Play mode so the pages face the camera).
+    private static readonly Vector3 BookLocalPos = new Vector3(0.1623f, -0.0722f, 0.0763f);
+    private static readonly Quaternion BookLocalRot = new Quaternion(-0.50635f, 0.48511f, -0.54101f, 0.46431f);
+    private static readonly Vector3 BookLocalScale = Vector3.one * 0.3f;
+
+    // Spells spawn in front of the left palm, which thrusts out here (camera space).
+    private static readonly Vector3 CastPointLocalPos = new Vector3(-0.22f, -0.12f, 0.46f);
 
     [MenuItem("Oxford Runner/Setup Player Body")]
     public static void Setup()
@@ -36,7 +40,10 @@ public static class PlayerBodySetup
             return;
         }
 
-        AnimatorController controller = BuildController();
+        // Reuse the controller if it exists: deleting/recreating it while the Animator window is open
+        // throws a (harmless) editor NullReferenceException. Use "Rebuild Player Animator" to force it.
+        var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
+        if (controller == null) controller = BuildController();
 
         // Replace any previous body.
         var old = player.transform.Find(BodyName);
@@ -69,19 +76,35 @@ public static class PlayerBodySetup
         // Book in the right hand.
         Transform hand = animator.GetBoneTransform(HumanBodyBones.RightHand);
         var bookAsset = AssetDatabase.LoadAssetAtPath<GameObject>(BookPrefab);
+        if (bookAsset == null)
+        {
+            Debug.LogError($"[PlayerBodySetup] Book prefab not found at {BookPrefab}");
+            return;
+        }
         var book = (GameObject)PrefabUtility.InstantiatePrefab(bookAsset, player.gameObject.scene);
         book.name = "Spellbook";
         book.transform.SetParent(hand, false);
         book.transform.localPosition = BookLocalPos;
         book.transform.localRotation = BookLocalRot;
+        book.transform.localScale = BookLocalScale;
         foreach (var col in book.GetComponentsInChildren<Collider>(true)) Object.DestroyImmediate(col);
 
-        // Spells fire out of the book.
-        var bookCastPoint = new GameObject("BookCastPoint").transform;
-        bookCastPoint.SetParent(book.transform, false);
+        // Spells fire from the left hand: reuse (or create) a CastPoint under the camera.
+        var camera = player.GetComponentInChildren<Camera>();
+        Transform castPoint = camera != null ? camera.transform.Find("CastPoint") : null;
+        if (castPoint == null && camera != null)
+        {
+            castPoint = new GameObject("CastPoint").transform;
+            castPoint.SetParent(camera.transform, false);
+        }
+        if (castPoint != null)
+        {
+            Undo.RecordObject(castPoint, "Cast point");
+            castPoint.localPosition = CastPointLocalPos;
+            castPoint.localRotation = Quaternion.identity;
+        }
 
         var bodyComp = body.AddComponent<PlayerBody>();
-        var camera = player.GetComponentInChildren<Camera>();
         var caster = player.GetComponent<SpellCaster>();
 
         var so = new SerializedObject(bodyComp);
@@ -89,12 +112,13 @@ public static class PlayerBodySetup
         so.FindProperty("cameraTransform").objectReferenceValue = camera != null ? camera.transform : null;
         so.FindProperty("spellCaster").objectReferenceValue = caster;
         so.FindProperty("book").objectReferenceValue = book.transform;
+        so.FindProperty("castPoint").objectReferenceValue = castPoint;
         so.ApplyModifiedPropertiesWithoutUndo();
 
         if (caster != null)
         {
             var cso = new SerializedObject(caster);
-            cso.FindProperty("castPoint").objectReferenceValue = bookCastPoint;
+            cso.FindProperty("castPoint").objectReferenceValue = castPoint;
             cso.ApplyModifiedProperties();
         }
 
@@ -108,6 +132,15 @@ public static class PlayerBodySetup
         EditorSceneManager.MarkSceneDirty(player.gameObject.scene);
         Selection.activeGameObject = body;
         Debug.Log("[PlayerBodySetup] Player body + spellbook set up. Tweak 'Hand Offset' / 'Hand Rotation Offset' on PlayerBody in Play mode.");
+    }
+
+    [MenuItem("Oxford Runner/Rebuild Player Animator")]
+    public static void RebuildAnimator()
+    {
+        var controller = BuildController();
+        foreach (var body in Object.FindObjectsByType<PlayerBody>(FindObjectsSortMode.None))
+            body.GetComponent<Animator>().runtimeAnimatorController = controller;
+        Debug.Log("[PlayerBodySetup] Rebuilt " + ControllerPath);
     }
 
     private static AnimatorController BuildController()
