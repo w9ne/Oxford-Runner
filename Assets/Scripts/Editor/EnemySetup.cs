@@ -32,8 +32,8 @@ public static class EnemySetup
         {
             var so = Fields(root);
             so.FindProperty("kind").enumValueIndex = (int)EnemyKind.Skeleton;
-            so.FindProperty("healthScale").floatValue = 1.2f;
-            so.FindProperty("speedScale").floatValue = 1.35f;
+            so.FindProperty("healthScale").floatValue = 0.5f;
+            so.FindProperty("speedScale").floatValue = 1.6f;
             so.FindProperty("intervalScale").floatValue = 1f;
             so.FindProperty("melee").boolValue = true;
             so.FindProperty("meleeRange").floatValue = 2.2f;
@@ -59,7 +59,7 @@ public static class EnemySetup
         {
             var so = Fields(root);
             so.FindProperty("kind").enumValueIndex = (int)EnemyKind.Mage;
-            so.FindProperty("healthScale").floatValue = 0.6f;
+            so.FindProperty("healthScale").floatValue = 0.4f;
             so.FindProperty("speedScale").floatValue = 1f;
             so.FindProperty("intervalScale").floatValue = 1f;
             so.FindProperty("keepMin").floatValue = 12f;
@@ -75,7 +75,7 @@ public static class EnemySetup
         // --- Commander
         Make(CommanderPath, root =>
         {
-            root.transform.localScale = Vector3.one * 1.2f;
+            root.transform.localScale = Vector3.one * 1.6f;   // shortcut: graybox commander, swap for a real model later
             var so = Fields(root);
             so.FindProperty("kind").enumValueIndex = (int)EnemyKind.Commander;
             so.FindProperty("healthScale").floatValue = 2.5f;
@@ -102,6 +102,8 @@ public static class EnemySetup
             cape.transform.localRotation = Quaternion.Euler(-6f, 0f, 0f);
             cape.transform.localScale = new Vector3(0.85f, 1.6f, 0.06f);
             cape.GetComponent<Renderer>().sharedMaterial = Mat("Enemy_CommanderCape", new Color(0.12f, 0.05f, 0.08f));
+            Prop("Assets/Hovl Studio/Magic effects pack/Prefabs/Character auras/Debuff.prefab", root.transform,
+                 new Vector3(0f, -1f, 0f), Quaternion.identity, 1f);   // aura so it stands out in a crowd
             so.ApplyModifiedPropertiesWithoutUndo();
         });
 
@@ -115,12 +117,10 @@ public static class EnemySetup
         return go != null ? go.GetComponent<Enemy>() : null;
     }
 
-    // Fresh copy of the base enemy each run, then dressed.
+    // Dress a fresh copy of the base enemy and save it over the old prefab (same GUID, so scene references survive).
     private static void Make(string path, System.Action<GameObject> dress)
     {
-        AssetDatabase.DeleteAsset(path);
-        AssetDatabase.CopyAsset(Base, path);
-        var root = PrefabUtility.LoadPrefabContents(path);
+        var root = PrefabUtility.LoadPrefabContents(Base);
         try
         {
             dress(root);

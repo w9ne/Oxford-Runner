@@ -30,7 +30,8 @@ public static class VfxSetup
         if (!AssetDatabase.IsValidFolder(OutDir.TrimEnd('/'))) AssetDatabase.CreateFolder("Assets/Prefabs/Spells", "VFX");
 
         // --- Projectiles: looping Hovl effect riding on the bolt.
-        Dress(ProjDir + "Fireball_Projectile.prefab", Hovl + "Sparks/Sparks flashing red.prefab", 1.2f);
+        // Fireball: Kevin Iglesias' big fireball (flames + embers) instead of plain sparks.
+        Dress(ProjDir + "Fireball_Projectile.prefab", "Assets/Kevin Iglesias/Human Animations/Unity Demo Scenes/Human Spellcasting Animations/Prefabs/Spells/Human_Spell_Fireball_Large.prefab", 0.9f);
         Dress(ProjDir + "FrostLance_Projectile.prefab", Hovl + "Sparks/Sparks flashing blue.prefab", 1f);
         Dress(ProjDir + "ArcaneMissile_Projectile.prefab", Hovl + "Sparks/Sparks flashing pink.prefab", 0.8f);
         Dress(ProjDir + "EnemyBolt_Projectile.prefab", Hovl + "Character auras/Lightning aura.prefab", 0.35f);
@@ -140,6 +141,7 @@ public static class VfxSetup
                 var main = ps.main;
                 main.scalingMode = ParticleSystemScalingMode.Hierarchy;
                 main.playOnAwake = true;
+                main.loop = true;   // rides the whole flight
             }
             foreach (var c in fx.GetComponentsInChildren<Collider>(true)) Object.DestroyImmediate(c);
             PrefabUtility.SaveAsPrefabAsset(root, projectilePath);
@@ -148,7 +150,7 @@ public static class VfxSetup
     }
 
     // A copy of a Hovl effect that plays once (looping off), scaled.
-    private static GameObject OneShot(string source, string name, float scale, float speed = 1f, params string[] extras)
+    public static GameObject OneShot(string source, string name, float scale, float speed = 1f, params string[] extras)
     {
         string dest = OutDir + name + ".prefab";
         var src = AssetDatabase.LoadAssetAtPath<GameObject>(source);

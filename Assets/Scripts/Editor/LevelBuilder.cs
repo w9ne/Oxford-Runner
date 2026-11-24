@@ -138,6 +138,7 @@ public static class LevelBuilder
         gateArea.gates.Add(AreaGate(Group("Gate_HillsToGate"), 164f, 90f));  // across the far edge of the hills
         var portal = Portal(d, new Vector3(0f, 0f, 213f), 0f);
 
+        IslandBounds();
         GreenlandScenery();
         Finish("Level 1 - Greenland", new Vector3(0f, 0f, -10f), 0f, portal, killY: -10f, killCenterZ: 100f);
     }
@@ -194,7 +195,7 @@ public static class LevelBuilder
 
         // --- Inner wall with a gate between two big round towers.
         var w1 = Group("InnerWall_1");
-        GatedWall(w1, 62f, halfW, gateWidth: 10f, height: 11f);
+        var door1 = GatedWall(w1, 62f, halfW, gateWidth: 10f, height: 11f);
 
         // --- Inner yard: a grid of round towers to weave through, barricade rows.
         var y = Group("B_InnerYard");
@@ -232,11 +233,12 @@ public static class LevelBuilder
         var yard = Encounter("Inner Yard", y, new Vector3(0f, 0f, 98f), new Vector2(halfW * 2f, 66f), yGarrison,
                   new[] { new Vector3(-40f, 0f, 126f), new Vector3(40f, 0f, 126f), new Vector3(0f, 0f, 128f), new Vector3(-48f, 0f, 96f), new Vector3(48f, 0f, 104f) },
                   Wave(4, 55f, 3.8f, 2.8f), Wave(5, 55f, 4f, 2.6f), Wave(5, 60f, 4f, 2.4f));
-        yard.gates.Add(AreaGate(Group("Gate_OuterToYard"), 62f, halfW * 2f + 10f));   // fills the first wall's gate
+        yard.gates.Add(door1);
+        yard.gates.Add(AreaGate(Group("Gate_OuterToYard"), 62f, halfW * 2f + 10f, visible: false));
 
         // --- Second wall and the keep approach.
         var w2 = Group("InnerWall_2");
-        GatedWall(w2, 136f, halfW, gateWidth: 12f, height: 12f);
+        var door2 = GatedWall(w2, 136f, halfW, gateWidth: 12f, height: 12f);
 
         var k = Group("C_KeepApproach");
         var kGarrison = new List<Enemy>
@@ -260,7 +262,8 @@ public static class LevelBuilder
         var keep = Encounter("Keep Approach", k, new Vector3(0f, 0f, 165f), new Vector2(halfW * 2f, 56f), kGarrison,
                   new[] { new Vector3(-46f, 0f, 186f), new Vector3(46f, 0f, 186f), new Vector3(-20f, 0f, 188f), new Vector3(20f, 0f, 188f) },
                   Wave(5, 60f, 4.2f, 2.4f), Wave(6, 65f, 4.2f, 2.2f));
-        keep.gates.Add(AreaGate(Group("Gate_YardToKeep"), 136f, halfW * 2f + 10f));    // fills the second wall's gate
+        keep.gates.Add(door2);
+        keep.gates.Add(AreaGate(Group("Gate_YardToKeep"), 136f, halfW * 2f + 10f, visible: false));
         // Cubbies to duck into (same spots as the hand-edited scene got).
         var cub = Group("Cubbies");
         foreach (var c in new[] { new Vector3(-9f, 0f, 45f), new Vector3(13f, 0f, 10f), new Vector3(-37f, 0f, 48f),
@@ -359,6 +362,93 @@ public static class LevelBuilder
     /// islands (the valley floor) and a ring of mountains on the horizon, plus clouds.
     /// None of the backdrop has colliders; it sits below the kill volume or far outside the play area.
     /// </summary>
+    /// <summary>
+    /// Level 1 edges: a wooden fence 2.5 m in from every island edge (gaps where the pit crossings start),
+    /// an invisible wall along it so you can't jump out, and flowers / bushes / small trees planted in the
+    /// strip behind the fence as background.
+    /// </summary>
+    private static void IslandBounds()
+    {
+        var g = Group("Bounds_Fences");
+        var rng = new System.Random(77);
+        float R(float a, float b) => a + (float)rng.NextDouble() * (b - a);
+        const string Fence = "Assets/RPGPP_LT/Prefabs/Exterior/Wood_path/rpgpp_lt_fence_wood_01a.prefab";
+        const float inset = 2.5f, gap = 10f, fenceLen = 3.6f;
+        string[] plants = { Nature + "Vegetation/Flowers/rpgpp_lt_flower_01.prefab", Nature + "Vegetation/Flowers/rpgpp_lt_flower_02.prefab",
+                            Nature + "Vegetation/Flowers/rpgpp_lt_flower_03.prefab", Nature + "Vegetation/Bushes/rpgpp_lt_bush_01.prefab",
+                            Nature + "Vegetation/Bushes/rpgpp_lt_bush_02.prefab", Nature + "Vegetation/Grass/rpgpp_lt_grass_small_01a.prefab",
+                            SNP + "Flowers_01.prefab", SNP + "Flowers_02.prefab", SNP + "Bush_01.prefab", SNP + "Grass_01.prefab" };
+        string[] smallTrees = { Nature + "Vegetation/Trees/rpgpp_lt_tree_01.prefab", Nature + "Vegetation/Trees/rpgpp_lt_tree_pine_01.prefab", SNP + "Tree_02.prefab" };
+
+        // centre, half size, open south edge?, open north edge?
+        var islands = new[]
+        {
+            (new Vector3(0f, 0f, 0f), new Vector2(12f, 15f), false, true),
+            (new Vector3(0f, 0f, 58f), new Vector2(25f, 25f), true, true),
+            (new Vector3(0f, 0f, 133f), new Vector2(30f, 30f), true, true),
+            (new Vector3(0f, 0f, 203f), new Vector2(15f, 15f), true, false),
+        };
+        foreach (var (c, half, openSouth, openNorth) in islands)
+        {
+            float fx = half.x - inset, fz = half.y - inset;
+            // west / east sides (run along z), south / north sides (run along x)
+            FenceLine(g, c + new Vector3(-fx, 0f, -fz), c + new Vector3(-fx, 0f, fz), Fence, fenceLen);
+            FenceLine(g, c + new Vector3(fx, 0f, -fz), c + new Vector3(fx, 0f, fz), Fence, fenceLen);
+            for (int e = 0; e < 2; e++)
+            {
+                float z = e == 0 ? -fz : fz;
+                bool open = e == 0 ? openSouth : openNorth;
+                if (open)
+                {
+                    FenceLine(g, c + new Vector3(-fx, 0f, z), c + new Vector3(-gap, 0f, z), Fence, fenceLen);
+                    FenceLine(g, c + new Vector3(gap, 0f, z), c + new Vector3(fx, 0f, z), Fence, fenceLen);
+                }
+                else FenceLine(g, c + new Vector3(-fx, 0f, z), c + new Vector3(fx, 0f, z), Fence, fenceLen);
+            }
+
+            // Background planting in the strip between fence and edge (never on the play area).
+            float perimeter = 4f * (half.x + half.y);
+            int count = Mathf.RoundToInt(perimeter / 2.2f);
+            for (int i = 0; i < count; i++)
+            {
+                float t = R(0f, 1f) * perimeter, d = R(0.6f, inset - 0.5f);
+                Vector3 p;
+                if (t < 2f * half.x) p = new Vector3(-half.x + t, 0f, -half.y + d);
+                else if (t < 4f * half.x) p = new Vector3(-half.x + (t - 2f * half.x), 0f, half.y - d);
+                else if (t < 4f * half.x + 2f * half.y) p = new Vector3(-half.x + d, 0f, -half.y + (t - 4f * half.x));
+                else p = new Vector3(half.x - d, 0f, -half.y + (t - 4f * half.x - 2f * half.y));
+                if (Mathf.Abs(p.x) < gap && Mathf.Abs(Mathf.Abs(p.z) - half.y) < inset + 0.1f) continue;   // keep crossings clear
+                bool tree = rng.NextDouble() < 0.15;
+                string kind = tree ? smallTrees[rng.Next(smallTrees.Length)] : plants[rng.Next(plants.Length)];
+                Prop(g, kind, c + p, R(0f, 360f), tree ? R(0.6f, 0.85f) : R(0.8f, 1.3f));
+            }
+        }
+    }
+
+    // Fence panels from a to b, plus an invisible 30 m wall along it (no jumping out of bounds).
+    private static void FenceLine(Transform parent, Vector3 a, Vector3 b, string fencePath, float panel)
+    {
+        Vector3 d = b - a;
+        float len = d.magnitude;
+        if (len < 0.5f) return;
+        Quaternion rot = Quaternion.LookRotation(d / len) * Quaternion.Euler(0f, 90f, 0f);   // fence model runs along x
+        int n = Mathf.Max(1, Mathf.RoundToInt(len / panel));
+        float scale = len / n / 3f;   // 3 m model, stretched to fit evenly
+        for (int i = 0; i < n; i++)
+        {
+            var f = Prop(parent, fencePath, a + d * ((i + 0.5f) / n), 0f, 1f);
+            if (f == null) continue;
+            f.transform.rotation = rot;
+            f.transform.localScale = new Vector3(scale, 1.2f, 1.2f);
+        }
+        var wall = new GameObject("BoundsWall");
+        wall.transform.SetParent(parent, false);
+        wall.transform.SetPositionAndRotation((a + b) * 0.5f + Vector3.up * 15f, Quaternion.LookRotation(d / len));
+        var box = wall.AddComponent<BoxCollider>();
+        box.size = new Vector3(0.4f, 30f, len);
+        wall.isStatic = true;
+    }
+
     private static void GreenlandScenery()
     {
         var rng = new System.Random(4242);
@@ -405,6 +495,12 @@ public static class LevelBuilder
         }
         for (int i = 0; i < 8; i++)
             Prop(hills, hillKinds[i % 2], new Vector3(R(-60f, 60f), -70f, R(-40f, 260f)), R(0f, 360f), R(0.6f, 1f));
+        // Forest down in the valley, either side of the island chain (background only).
+        for (int i = 0; i < 60; i++)
+        {
+            float side = i % 2 == 0 ? -1f : 1f;
+            Prop(hills, treeKinds[rng.Next(treeKinds.Length)], new Vector3(side * R(40f, 140f), -61f, R(-60f, 280f)), R(0f, 360f), R(2.5f, 4f));
+        }
 
         // --- Background: a ring of mountains on the horizon.
         var mountains = Group("Scenery_Mountains");
@@ -454,6 +550,7 @@ public static class LevelBuilder
         }
         mat.color = color;
         mat.SetFloat("_Glossiness", 0.1f);
+        LevelTextures.Apply(mat, name);
         EditorUtility.SetDirty(mat);
         return mat;
     }
@@ -494,10 +591,12 @@ public static class LevelBuilder
     /// A glowing barrier across the level at z, blocking the way into the next area until the current
     /// one is cleared (LevelManager sinks it). Tall enough that you can't wall-run over it.
     /// </summary>
-    public static GameObject AreaGate(Transform parent, float z, float width, float height = 40f)
+    public static GameObject AreaGate(Transform parent, float z, float width, float height = 40f, bool visible = true)
     {
         var gate = Box(parent, "AreaGate", new Vector3(0f, height * 0.5f - 2f, z), new Vector3(width, height, 0.6f), BarrierMaterial());
+        gate.isStatic = false;
         var r = gate.GetComponent<Renderer>();
+        r.enabled = visible;   // invisible = just stops wall-running over the castle wall
         r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         r.receiveShadows = false;
         return gate;
@@ -524,7 +623,7 @@ public static class LevelBuilder
         go.name = "GarrisonCaster";
         go.transform.position = floor + Vector3.up * 1.02f;
         var so = new SerializedObject(go.GetComponent<Enemy>());
-        so.FindProperty("maxHealth").floatValue = 50f;
+        so.FindProperty("maxHealth").floatValue = 20f;
         so.FindProperty("moveSpeed").floatValue = 0f;
         so.FindProperty("fireInterval").floatValue = 3.4f;
         so.FindProperty("attackRange").floatValue = 42f;
@@ -762,18 +861,39 @@ public static class LevelBuilder
     }
 
     /// <summary>A wall across the grounds at z with a central gate flanked by two big round towers.</summary>
-    private static void GatedWall(Transform parent, float z, float halfWidth, float gateWidth, float height)
+    private static GameObject GatedWall(Transform parent, float z, float halfWidth, float gateWidth, float height)
     {
         float segment = halfWidth - gateWidth * 0.5f;
         CastleWall(parent, new Vector3(-(gateWidth * 0.5f + segment * 0.5f), 0f, z), segment, 0f, height);
         CastleWall(parent, new Vector3(gateWidth * 0.5f + segment * 0.5f, 0f, z), segment, 0f, height);
-        // The gate is a low slot: slide (Ctrl) under it to get through.
-        float slot = 1.3f;
-        Box(parent, "SlideGate", new Vector3(0f, (slot + height) * 0.5f, z), new Vector3(gateWidth, height - slot, 3f), stoneMat);
-        Box(parent, "SlideGate_Edge", new Vector3(0f, slot + 0.05f, z - 1.55f), new Vector3(gateWidth, 0.1f, 0.12f), portalMat);
-        Box(parent, "SlideGate_Edge", new Vector3(0f, slot + 0.05f, z + 1.55f), new Vector3(gateWidth, 0.1f, 0.12f), portalMat);
         RoundTower(parent, new Vector3(-gateWidth * 0.5f - 2.5f, 0f, z), 3.5f, height + 4f);
         RoundTower(parent, new Vector3(gateWidth * 0.5f + 2.5f, 0f, z), 3.5f, height + 4f);
+        return BuildGateDoor(parent, z, gateWidth, height, woodMat);
+    }
+
+    /// <summary>A giant two-leaf wooden gate filling a gateway at z (centred on x = 0). Swings open via GateDoor.</summary>
+    public static GameObject BuildGateDoor(Transform parent, float z, float width, float height, Material wood)
+    {
+        var root = Graybox.Group(parent, "GateDoor");
+        var door = root.gameObject.AddComponent<GateDoor>();
+        var iron = Mat("L2_GateIron", new Color(0.18f, 0.18f, 0.2f));
+        float leaf = width * 0.5f;
+        for (int side = -1; side <= 1; side += 2)
+        {
+            var hinge = Graybox.Group(root, side < 0 ? "LeftHinge" : "RightHinge");
+            hinge.position = new Vector3(side * leaf, 0f, z);
+            float cx = side * leaf * 0.5f;   // leaf centre, toward the middle
+            Box(hinge, "Leaf", new Vector3(cx, height * 0.5f, z), new Vector3(leaf - 0.05f, height, 0.8f), wood);
+            for (int b = 0; b < 3; b++)
+            {
+                float y = height * (0.2f + b * 0.3f);
+                Box(hinge, "Band", new Vector3(cx, y, z - 0.45f), new Vector3(leaf - 0.1f, 0.35f, 0.1f), iron);
+                Box(hinge, "Band", new Vector3(cx, y, z + 0.45f), new Vector3(leaf - 0.1f, 0.35f, 0.1f), iron);
+            }
+            if (side < 0) door.leftHinge = hinge; else door.rightHinge = hinge;
+        }
+        foreach (var t in root.GetComponentsInChildren<Transform>()) t.gameObject.isStatic = false;   // it moves
+        return root.gameObject;
     }
 
     /// <summary>

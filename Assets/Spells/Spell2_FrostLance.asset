@@ -36,7 +36,7 @@ MonoBehaviour:
   slowAmount: 0
   slowDuration: 0
   knockback: 0
-  freezeDuration: 1.5
+  freezeDuration: 2
   damage: 12
   impactRadius: 0.6
   impactVfx: {fileID: 1940214882849163538, guid: 9dcbb9bbd9588994a818fc0cea4c993b, type: 3}

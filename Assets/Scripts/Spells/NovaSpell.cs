@@ -10,7 +10,7 @@ using UnityEngine;
 public class NovaSpell : Spell
 {
     public float radius = 7f;
-    public float damage = 45f;
+    public float damage = 58.5f;
     [Tooltip("Velocity change applied to enemies, pushing them away from the caster.")]
     public float knockback = 30f;
     public bool destroysProjectiles = true;

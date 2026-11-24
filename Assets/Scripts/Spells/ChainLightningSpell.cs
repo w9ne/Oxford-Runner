@@ -11,12 +11,13 @@ public class ChainLightningSpell : Spell
 {
     [Header("Strike")]
     public float range = 70f;
-    public float damage = 28f;
+    public float damage = 24f;
     public float blastRadius = 4.5f;
     [Tooltip("Enemies this close to the aimed spot get struck directly.")]
     public float aimAssistRadius = 4f;
     public float skyHeight = 30f;
     public float knockback = 6f;
+    public float stunDuration = 1f;
 
     [Header("Legacy (unused)")]
     [Min(0)] public int jumps = 0;
@@ -54,6 +55,7 @@ public class ChainLightningSpell : Spell
             Vector3 at = Targeting.Center(d);
             if (!Targeting.Clear(blastCenter, at, null, ((Component)d).transform)) continue;
             var info = new DamageInfo(damage, Faction.Player, at);
+            info.stunDuration = stunDuration;
             Vector3 away = at - spot; away.y = 0f;
             if (knockback > 0f) info.knockback = ((away.sqrMagnitude > 0.01f ? away.normalized : Vector3.zero) + Vector3.up).normalized * knockback;
             d.TakeDamage(info);

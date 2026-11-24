@@ -315,3 +315,40 @@ adds health + parry + HUD to the Player prefab.
   Enemy_Commander (1.2x size, crimson/gold + cape, 2.5x HP, 1.5x speed, 0.55x fire interval, 16-26 m, dash).
 - LevelManager mixes types per area: 1 commander (4+ enemies) or 2 (9+), rest alternate skeleton/mage starting with
   skeleton. Level 1 rebuilt; Level 2 scene got the type prefabs set (not rebuilt). Tower garrisons stay Casters.
+
+## 2026-11-24 (2): Tuning, stun, parry aim, projectile fix
+- Projectile fix: on impact the Visual's local-space particles (the glowing ball) were left frozen at the hit point for
+  1 s; now cleared, only world-space trail particles fade. Projectile centre now ends at the sphere-cast contact
+  (was snapped to the surface point).
+- Lightning stuns 0.8 s (`DamageInfo.stunDuration`, `Enemy.IsStunned`): stops in place, no attacks, "STUNNED" overhead.
+- Parry reflects at the visible enemy closest to the crosshair (within 15°, `reflectAssistAngle`), else at the aim point.
+- Skeleton HP 0.8x / speed 1.6x, Mage HP 0.4x, Commander scale 1.6 + Hovl "Debuff" aura.
+- Fix: Setup Enemy Types deleted + recopied the type prefabs (new GUIDs), breaking the levels' references so only
+  Casters spawned. Now saves over the existing prefabs (GUIDs kept). Level 1/2 references re-set. Lightning stun 1 s.
+
+## 2026-11-24 (3): Parry homing, spell switch readability, lower hand
+- Parried bolts lock onto the crosshair enemy (25° assist) via `ForceTarget` and home in (720°/s, ramping), so they
+  track moving targets.
+- Hotbar ~1.5x bigger; switching spells flashes the spell name (in its colour) under the crosshair, fading in ~0.8 s.
+  (No page-turn effect in the book pack, so no page animation.)
+- Book hand lowered (handOffset y -0.3) and book hover 0.14 (still floating).
+
+## 2026-11-24 (4): Spell books, textured Level 1, gate doors
+- Spell books (Setup Spell Books / SpellBookSetup.cs): one GreyratsLab book per slot (Fire, Ice, Air, Necromancy,
+  Earth). On spell change the new book pops up from the palm (spin + ease-out-back scale) with a coloured spark burst
+  (BookSwap_* one-shots). Pack materials converted URP -> Standard using their saved _BaseColor. Old open book hidden.
+- Hotbar bigger again (235x105); switch name under crosshair smaller and quicker.
+- Arcane Nova damage 58.5 (1.3x). Skeleton HP 0.5x. Tower garrison casters 20 HP (L1 builder + L2 scene).
+- Level textures: generated seamless grass / dirt / rock / bricks / wood / roof-tile textures (LevelTextures.cs) drawn
+  with new world-space `OxfordRunner/Triplanar` shader; applied by name to every L1/L2 level material.
+- Level 1: wooden fences 2.5 m inside every island edge (gaps at pit crossings) with invisible 30 m walls, flowers /
+  bushes / small trees planted behind the fences, 60 trees in the valley below.
+- Level 2: slide gates replaced with giant two-leaf wooden gate doors (`GateDoor`, swing open when the area unlocks);
+  the purple area barriers are now invisible (still stop wall-running over the walls). Patched into the hand-edited
+  scene; builder matches.
+- Spell books flipped 180° about their cover normal (`spellBookSpin`). Book size no longer drifts on rapid switching
+  (each book's scale captured once). Hotbar key numbers no longer clipped.
+- Cubbies get a cosmetic bubbling cauldron (LowPolyDungeons Pot_01 + Particles_Pot); L1 rebuilt, L2 scene patched.
+- Fireball projectile now carries Kevin Iglesias' Human_Spell_Fireball_Large (looping) instead of Hovl red sparks.
+- Cauldrons removed (builder + both scenes). Lightning Strike 24 dmg (was 28). Frost freeze 2 s, frozen enemies take
+  2.5x damage. User hand-edited Level 1 (removed a box): patch it in place, don't rebuild.

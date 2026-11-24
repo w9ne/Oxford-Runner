@@ -109,7 +109,8 @@ public class SpellProjectile : MonoBehaviour
         if (to.sqrMagnitude < 0.0001f) return;
         Quaternion want = Quaternion.LookRotation(to);
         // Turn harder the longer it flies, so missiles never orbit a target.
-        float rate = spell.homingTurnRate * (1f + (Time.time - launchTime) * 4f);
+        float baseRate = WasReflected && locked ? 720f : spell.homingTurnRate;   // parried bolts have no homing of their own
+        float rate = baseRate * (1f + (Time.time - launchTime) * 4f);
         transform.rotation = Quaternion.RotateTowards(transform.rotation, want, rate * Time.deltaTime);
     }
 
@@ -174,7 +175,7 @@ public class SpellProjectile : MonoBehaviour
 
         if (Time.time >= dieTime) { Finish(false, transform.position, Vector3.up); return; }
 
-        if (spell.homingTurnRate > 0f && !WasReflected) Steer();
+        if ((spell.homingTurnRate > 0f && !WasReflected) || lockedTarget != null) Steer();
 
         float step = Speed * Time.deltaTime;
         Vector3 dir = transform.forward;
@@ -210,7 +211,7 @@ public class SpellProjectile : MonoBehaviour
                 if (parry != null && parry.TryCatch(this, hit.point)) return;
             }
 
-            transform.position = hit.point;
+            transform.position += dir * hit.distance;   // sphere centre at contact, not the surface point
             Finish(true, hit.point, hit.normal);
             return;
         }
@@ -273,8 +274,11 @@ public class SpellProjectile : MonoBehaviour
         if (visual != null)
         {
             visual.SetParent(null, true);
+            // Local-space particles (the glowing ball) would freeze at the impact point: clear them.
+            // Only world-space ones (the trail left in the air) fade out.
             foreach (var ps in visual.GetComponentsInChildren<ParticleSystem>())
-                ps.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+                ps.Stop(false, ps.main.simulationSpace == ParticleSystemSimulationSpace.World
+                    ? ParticleSystemStopBehavior.StopEmitting : ParticleSystemStopBehavior.StopEmittingAndClear);
             foreach (var l in visual.GetComponentsInChildren<Light>()) l.enabled = false;
             Destroy(visual.gameObject, visualFadeTime);
         }

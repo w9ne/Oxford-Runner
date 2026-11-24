@@ -1,37 +1,5 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &387004185378014125
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 5446233720938192333}
-  m_Layer: 0
-  m_Name: WeaponPivot
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &5446233720938192333
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 387004185378014125}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0.1736482, y: 0, z: 0, w: 0.9848078}
-  m_LocalPosition: {x: 0.5, y: 0.05, z: 0.25}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 5146420918237643930}
-  m_Father: {fileID: 6329913014617512758}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2990415708222752274
 GameObject:
   m_ObjectHideFlags: 0
@@ -122,7 +90,7 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!1 &5485404285296549408
+--- !u!1 &3591756770836970657
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -130,9 +98,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 5146420918237643930}
-  - component: {fileID: 8125647234361379647}
-  - component: {fileID: 6278279917653082101}
+  - component: {fileID: 4220905757595870747}
+  - component: {fileID: 953761436145297854}
+  - component: {fileID: 3087366738773859700}
   m_Layer: 0
   m_Name: Sword_01
   m_TagString: Untagged
@@ -140,36 +108,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &5146420918237643930
+--- !u!4 &4220905757595870747
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5485404285296549408}
+  m_GameObject: {fileID: 3591756770836970657}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 5446233720938192333}
+  m_Father: {fileID: 7251255562776939364}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &8125647234361379647
+--- !u!33 &953761436145297854
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5485404285296549408}
+  m_GameObject: {fileID: 3591756770836970657}
   m_Mesh: {fileID: -2490357807671972370, guid: 7659b8e98cc1a564f8b82efd7ed529d4, type: 3}
---- !u!23 &6278279917653082101
+--- !u!23 &3087366738773859700
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5485404285296549408}
+  m_GameObject: {fileID: 3591756770836970657}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -246,7 +214,7 @@ Transform:
   m_Children:
   - {fileID: 3438759134634114309}
   - {fileID: 953038172169476638}
-  - {fileID: 5446233720938192333}
+  - {fileID: 7251255562776939364}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!136 &8943836402409362012
@@ -312,8 +280,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy
   kind: 1
-  healthScale: 1.2
-  speedScale: 1.35
+  healthScale: 0.5
+  speedScale: 1.6
   intervalScale: 1
   maxHealth: 50
   moveSpeed: 3.5
@@ -335,12 +303,44 @@ MonoBehaviour:
   meleeWindup: 0.6
   meleeDamage: 15
   meleeCooldown: 1.2
-  weapon: {fileID: 5446233720938192333}
+  weapon: {fileID: 7251255562776939364}
   canDash: 0
   dashCooldown: 5
   dashSpeed: 16
   dashDuration: 0.25
-  frozenDamageMultiplier: 2
+  frozenDamageMultiplier: 2.5
+--- !u!1 &7483309845833950912
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7251255562776939364}
+  m_Layer: 0
+  m_Name: WeaponPivot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7251255562776939364
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7483309845833950912}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.1736482, y: 0, z: 0, w: 0.9848078}
+  m_LocalPosition: {x: 0.5, y: 0.05, z: 0.25}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 4220905757595870747}
+  m_Father: {fileID: 6329913014617512758}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &9178927656557242087
 GameObject:
   m_ObjectHideFlags: 0

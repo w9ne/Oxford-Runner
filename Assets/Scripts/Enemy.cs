@@ -106,7 +106,7 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
     private Quaternion weaponRest;
 
     [Header("Frozen")]
-    [SerializeField] private float frozenDamageMultiplier = 2f;
+    [SerializeField] private float frozenDamageMultiplier = 2.5f;
     private float frozenUntil;
     private bool frozenApplied;
     private RigidbodyConstraints savedConstraints;
@@ -114,6 +114,9 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
 
     /// <summary>Frozen solid (Frost Lance): can't move, turn or cast, and takes extra damage.</summary>
     public bool IsFrozen => Time.time < frozenUntil;
+    /// <summary>Stunned (Lightning): stopped in place, no attacks.</summary>
+    public bool IsStunned => Time.time < stunUntil;
+    private float stunUntil;
 
     /// <summary>1 = normal speed, lower while slowed (Frost Lance).</summary>
     private float SpeedScale => Time.time < slowUntil ? slowFactor : 1f;
@@ -196,6 +199,11 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
         if (IsDead || target == null) return;
         if (transform.position.y < FallDeathHeight) { Die(); return; }   // knocked into a pit
         if (IsFrozen) return;
+        if (IsStunned)
+        {
+            if (!rb.isKinematic) rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            return;
+        }
 
         Vector3 toTarget = target.position - transform.position;
         toTarget.y = 0f;
@@ -322,7 +330,7 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
     {
         if (IsDead) return;
         UpdateFreeze();
-        if (!IsFrozen)
+        if (!IsFrozen && !IsStunned)
         {
             UpdateSight();
             if (melee) UpdateMelee(); else UpdateAttack();
@@ -483,6 +491,12 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
         }
         TakeDamage(info.amount);
         if (info.freezeDuration > 0f && !IsDead) Freeze(info.freezeDuration);   // the freezing hit itself isn't doubled
+        if (info.stunDuration > 0f && !IsDead)
+        {
+            stunUntil = Mathf.Max(stunUntil, Time.time + info.stunDuration);
+            windupStart = -1f;
+            dashUntil = 0f;
+        }
     }
 
     public void Freeze(float duration)
@@ -507,10 +521,11 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
         nextShotTime = Mathf.Max(nextShotTime, Time.time + 0.5f);
     }
 
-    // "FROZEN" over the enemy's head while frozen.
+    // "FROZEN" / "STUNNED" over the enemy's head.
     private void OnGUI()
     {
-        if (!IsFrozen || IsDead) return;
+        string status = IsFrozen ? "FROZEN" : IsStunned ? "STUNNED" : null;
+        if (status == null || IsDead) return;
         var cam = Camera.main;
         if (cam == null) return;
         Vector3 sp = cam.WorldToScreenPoint(transform.position + Vector3.up * 2.9f);
@@ -520,9 +535,9 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
         frozenStyle.fontSize = Mathf.RoundToInt(Mathf.Clamp(260f / sp.z, 16f, 34f) * ui);
         var r = new Rect(sp.x - 120f * ui, Screen.height - sp.y - 20f * ui, 240f * ui, 40f * ui);
         frozenStyle.normal.textColor = new Color(0f, 0.1f, 0.25f, 0.85f);
-        GUI.Label(new Rect(r.x + 2f, r.y + 2f, r.width, r.height), "FROZEN", frozenStyle);
-        frozenStyle.normal.textColor = new Color(0.7f, 0.95f, 1f);
-        GUI.Label(r, "FROZEN", frozenStyle);
+        GUI.Label(new Rect(r.x + 2f, r.y + 2f, r.width, r.height), status, frozenStyle);
+        frozenStyle.normal.textColor = IsFrozen ? new Color(0.7f, 0.95f, 1f) : new Color(1f, 0.9f, 0.3f);
+        GUI.Label(r, status, frozenStyle);
     }
 
     public void TakeDamage(float amount)

@@ -54,7 +54,7 @@ public static class SpellSetup
         frost.pierce = 3;
         frost.slowAmount = 0f;
         frost.slowDuration = 0f;
-        frost.freezeDuration = 1.5f;      // frozen solid: no moving / casting, takes 2x damage
+        frost.freezeDuration = 2f;        // frozen solid: no moving / casting, takes 2.5x damage
         Dirty(frost);
 
         // --- 3 Chain Lightning
@@ -63,10 +63,11 @@ public static class SpellSetup
         lightning.displayName = "Lightning Strike";
         lightning.uiColor = new Color(0.45f, 0.7f, 1f);
         lightning.cooldown = 0.8f;
-        lightning.damage = 28f;           // nova does 45
+        lightning.damage = 24f;
         lightning.blastRadius = 4.5f;
         lightning.aimAssistRadius = 4f;
         lightning.knockback = 6f;
+        lightning.stunDuration = 1f;
         lightning.jumps = 0;
         lightning.boltColor = new Color(0.45f, 0.7f, 1f);
         lightning.boltWidth = 0.35f;
@@ -111,7 +112,7 @@ public static class SpellSetup
         nova.uiColor = NovaColor;
         nova.cooldown = 6f;
         nova.radius = 7f;
-        nova.damage = 45f;
+        nova.damage = 58.5f;      // 45 x 1.3
         nova.knockback = 30f;
         nova.castTime = 0.3f;
         nova.castMoveMultiplier = 0.25f;

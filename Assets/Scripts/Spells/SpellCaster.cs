@@ -22,6 +22,9 @@ public class SpellCaster : MonoBehaviour
     /// <summary>Raised after a spell is successfully cast (used for hand/book animation, audio, etc).</summary>
     public event System.Action<Spell> Cast;
 
+    private int shownSelected;
+    private float switchedAt = -10f;
+    private GUIStyle switchStyle;
     private Spell windingSpell;
     private float windEnd;
 
@@ -29,6 +32,10 @@ public class SpellCaster : MonoBehaviour
     public bool IsCasting => windingSpell != null && Time.time < windEnd;
     /// <summary>Move speed multiplier for the controller (slowed while winding up).</summary>
     public float MoveMultiplier => IsCasting ? windingSpell.castMoveMultiplier : 1f;
+
+    /// <summary>Raised when the selected spell slot changes (the book swap listens).</summary>
+    public event System.Action<int> SpellSelected;
+    public int SelectedIndex => selected;
 
     public Spell CurrentSpell => spells.Count > 0 ? spells[selected] : null;
     public int UnlockedCount => Mathf.Min(unlockedCount, spells.Count);
@@ -47,6 +54,7 @@ public class SpellCaster : MonoBehaviour
         if (UnlockedCount > 1 && Mathf.Abs(wheel) > 0.01f)
             selected = (selected + (wheel < 0f ? 1 : -1) + UnlockedCount) % UnlockedCount;
         if (selected >= UnlockedCount) selected = 0;
+        if (selected != shownSelected) { shownSelected = selected; switchedAt = Time.unscaledTime; SpellSelected?.Invoke(selected); }
 
         if (Cursor.lockState != CursorLockMode.Locked || GameFlow.Paused) return;   // first click just re-locks the cursor
         if (Input.GetMouseButton(0)) TryCast();
@@ -106,6 +114,23 @@ public class SpellCaster : MonoBehaviour
         GUI.DrawTexture(new Rect(cx - 2, cy - 2, 4, 4), Texture2D.whiteTexture);
 
         DrawHotbar();
+        DrawSwitchName(cx, cy);
+    }
+
+    // The new spell's name under the crosshair for a moment after switching, then fades.
+    private void DrawSwitchName(float cx, float cy)
+    {
+        Spell s = CurrentSpell;
+        float a = 1f - Mathf.Clamp01((Time.unscaledTime - switchedAt - 0.25f) / 0.35f);
+        if (s == null || a <= 0f) return;
+        float ui = Screen.height / 1080f;
+        if (switchStyle == null) switchStyle = new GUIStyle(GUI.skin.label) { font = MenuUI.Font, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
+        switchStyle.fontSize = Mathf.RoundToInt(22 * ui);
+        var r = new Rect(cx - 300f * ui, cy + 30f * ui, 600f * ui, 34f * ui);
+        switchStyle.normal.textColor = new Color(0f, 0f, 0f, 0.8f * a);
+        GUI.Label(new Rect(r.x + 2f, r.y + 2f, r.width, r.height), s.displayName, switchStyle);
+        switchStyle.normal.textColor = new Color(s.uiColor.r, s.uiColor.g, s.uiColor.b, a);
+        GUI.Label(r, s.displayName, switchStyle);
     }
 
     // One slot per unlocked spell: number, name, a coloured strip, and a dark overlay that drains as the
@@ -115,25 +140,25 @@ public class SpellCaster : MonoBehaviour
         int count = UnlockedCount;
         if (count == 0) return;
         float ui = Screen.height / 1080f;
-        float w = 118f * ui, h = 54f * ui, gap = 8f * ui;
+        float w = 235f * ui, h = 105f * ui, gap = 12f * ui;
         float x0 = (Screen.width - (count * w + (count - 1) * gap)) * 0.5f;
         float y = Screen.height - h - 24f * ui;
 
-        var nameStyle = new GUIStyle(GUI.skin.label) { font = MenuUI.Font, fontSize = Mathf.RoundToInt(15 * ui), alignment = TextAnchor.LowerCenter, fontStyle = FontStyle.Bold };
-        var keyStyle = new GUIStyle(GUI.skin.label) { font = MenuUI.Font, fontSize = Mathf.RoundToInt(13 * ui), alignment = TextAnchor.UpperLeft };
-        var cdStyle = new GUIStyle(GUI.skin.label) { font = MenuUI.Font, fontSize = Mathf.RoundToInt(20 * ui), alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
+        var nameStyle = new GUIStyle(GUI.skin.label) { font = MenuUI.Font, fontSize = Mathf.RoundToInt(28 * ui), alignment = TextAnchor.LowerCenter, fontStyle = FontStyle.Bold };
+        var keyStyle = new GUIStyle(GUI.skin.label) { font = MenuUI.Font, fontSize = Mathf.RoundToInt(22 * ui), alignment = TextAnchor.UpperLeft };
+        var cdStyle = new GUIStyle(GUI.skin.label) { font = MenuUI.Font, fontSize = Mathf.RoundToInt(36 * ui), alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
 
         for (int i = 0; i < count; i++)
         {
             Spell s = spells[i];
             bool sel = i == selected;
-            var r = new Rect(x0 + i * (w + gap), y - (sel ? 8f * ui : 0f), w, h);
+            var r = new Rect(x0 + i * (w + gap), y - (sel ? 12f * ui : 0f), w, h);
 
             if (sel) { GUI.color = s.uiColor; GUI.DrawTexture(new Rect(r.x - 2, r.y - 2, r.width + 4, r.height + 4), Texture2D.whiteTexture); }
             GUI.color = new Color(0f, 0f, 0f, sel ? 0.85f : 0.6f);
             GUI.DrawTexture(r, Texture2D.whiteTexture);
             GUI.color = s.uiColor;
-            GUI.DrawTexture(new Rect(r.x, r.yMax - 4f * ui, r.width, 4f * ui), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(r.x, r.yMax - 6f * ui, r.width, 6f * ui), Texture2D.whiteTexture);
 
             float cd = CooldownRemaining(s);
             if (cd > 0f && s.cooldown > 0f)
@@ -145,7 +170,7 @@ public class SpellCaster : MonoBehaviour
 
             GUI.color = Color.white;
             keyStyle.normal.textColor = new Color(1f, 1f, 1f, 0.7f);
-            GUI.Label(new Rect(r.x + 5 * ui, r.y + 2 * ui, 30 * ui, 20 * ui), (i + 1).ToString(), keyStyle);
+            GUI.Label(new Rect(r.x + 6 * ui, r.y + 2 * ui, 40 * ui, 32 * ui), (i + 1).ToString(), keyStyle);   // rect must fit the font or it's clipped
             nameStyle.normal.textColor = sel ? s.uiColor : new Color(1f, 1f, 1f, 0.8f);
             GUI.Label(new Rect(r.x, r.y, r.width, r.height - 6f * ui), s.displayName, nameStyle);
             if (cd > 0.05f && s.cooldown >= 1.5f)

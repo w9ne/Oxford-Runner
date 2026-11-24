@@ -56,7 +56,7 @@ public class PlayerBody : MonoBehaviour
 
     [Header("Book Hand (right, IK)")]
     [Tooltip("Where the right hand sits, in camera space (x right, y up, z forward).")]
-    [SerializeField] private Vector3 handOffset = new Vector3(0.2f, -0.21f, 0.46f);
+    [SerializeField] private Vector3 handOffset = new Vector3(0.2f, -0.3f, 0.46f);
     [Tooltip("Hand rotation in camera space.")]
     [SerializeField] private Vector3 handRotationOffset = new Vector3(11.7f, 358.8f, 91.8f);   // palm down, fingers forward
     [SerializeField] private Vector3 elbowHintOffset = new Vector3(0.45f, -0.5f, 0.05f);
@@ -64,7 +64,7 @@ public class PlayerBody : MonoBehaviour
 
     [Header("Floating Book")]
     [Tooltip("How far above the right palm the book hovers (camera up).")]
-    [SerializeField] private float bookHover = 0.2f;
+    [SerializeField] private float bookHover = 0.14f;
     [Tooltip("Extra camera-space offset for the book (x right, y up, z forward).")]
     [SerializeField] private Vector3 bookOffset = Vector3.zero;
     [Tooltip("Book rotation in camera space (pages tilted toward the view).")]
@@ -72,6 +72,18 @@ public class PlayerBody : MonoBehaviour
     [SerializeField] private float bookBobAmount = 0.012f;
     [SerializeField] private float bookBobSpeed = 2.2f;
     [SerializeField] private float bookFollowSharpness = 18f;
+
+    [Header("Spell books (one per spell slot, swapped with a pop when you change spell)")]
+    [SerializeField] private Transform[] spellBooks;
+    [SerializeField] private GameObject[] bookSwapVfx;              // burst per slot, at the book
+    [Tooltip("Rotation in camera space for the (closed) spell books: cover toward the view.")]
+    [SerializeField] private Vector3 spellBookRotation = new Vector3(-60f, 0f, 0f);
+    [SerializeField] private float bookPopTime = 0.4f;
+    [Tooltip("Turn about the book's own cover normal (180 = flip it the other way up).")]
+    [SerializeField] private float spellBookSpin = 180f;
+    private float bookPopStart = -10f;
+    private Vector3 bookBaseScale = Vector3.one;
+    private Vector3[] spellBookScales;   // each book's real size, captured once (localScale is animated during the pop)
 
     [Header("Cast Hand (left, IK)")]
     [Tooltip("Left palm rotation in camera space while casting (palm forward, fingers up).")]
@@ -177,11 +189,12 @@ public class PlayerBody : MonoBehaviour
             col.enabled = false;
 
         if (cameraTransform != null) lastLook = new Vector2(cameraTransform.eulerAngles.y, cameraTransform.eulerAngles.x);
+        ShowBook(spellCaster != null ? spellCaster.SelectedIndex : 0, false);
     }
 
     private void OnEnable()
     {
-        if (spellCaster != null) spellCaster.Cast += OnSpellCast;
+        if (spellCaster != null) { spellCaster.Cast += OnSpellCast; spellCaster.SpellSelected += OnSpellSelected; }
         if (parry != null)
         {
             parry.WindowOpened += OnParryWindow;
@@ -191,7 +204,7 @@ public class PlayerBody : MonoBehaviour
 
     private void OnDisable()
     {
-        if (spellCaster != null) spellCaster.Cast -= OnSpellCast;
+        if (spellCaster != null) { spellCaster.Cast -= OnSpellCast; spellCaster.SpellSelected -= OnSpellSelected; }
         if (parry != null)
         {
             parry.WindowOpened -= OnParryWindow;
@@ -208,6 +221,34 @@ public class PlayerBody : MonoBehaviour
     }
 
     private void OnParried(SpellProjectile p) => castKick = 1.5f;
+
+    // Swap to the slot's book: the old one vanishes, the new one pops up spinning with a burst.
+    private void OnSpellSelected(int index) => ShowBook(index, true);
+
+    private void ShowBook(int index, bool pop)
+    {
+        if (spellBooks == null || spellBooks.Length == 0) return;
+        index = Mathf.Clamp(index, 0, spellBooks.Length - 1);
+        if (spellBookScales == null)
+        {
+            spellBookScales = new Vector3[spellBooks.Length];
+            for (int i = 0; i < spellBooks.Length; i++) if (spellBooks[i] != null) spellBookScales[i] = spellBooks[i].localScale;
+        }
+        for (int i = 0; i < spellBooks.Length; i++)
+            if (spellBooks[i] != null) spellBooks[i].gameObject.SetActive(i == index);
+        if (spellBooks[index] == null) return;
+        if (book != null && book != spellBooks[index]) spellBooks[index].SetPositionAndRotation(book.position, book.rotation);
+        book = spellBooks[index];
+        bookBaseScale = spellBookScales[index];
+        book.localScale = bookBaseScale;
+        if (!pop) return;
+        bookPopStart = Time.time;
+        if (bookSwapVfx != null && index < bookSwapVfx.Length && bookSwapVfx[index] != null)
+        {
+            var fx = Instantiate(bookSwapVfx[index], book.position, Quaternion.identity, book.parent);
+            Destroy(fx, 1.5f);
+        }
+    }
 
     private void OnSpellCast(Spell spell)
     {
@@ -416,9 +457,21 @@ public class PlayerBody : MonoBehaviour
                          + Vector3.up * (bookHover + bob) + bookOffset;
         bookLocal = bookPlaced ? Vector3.Lerp(bookLocal, target, 1f - Mathf.Exp(-bookFollowSharpness * Time.deltaTime)) : target;
         bookPlaced = true;
-        book.position = cameraTransform.TransformPoint(bookLocal);
+        // Pop-in after a spell change: rises from the palm, spins once and overshoots its size.
+        float pop = Mathf.Clamp01((Time.time - bookPopStart) / bookPopTime);
+        float rise = (1f - pop) * (1f - pop);
+        book.position = cameraTransform.TransformPoint(bookLocal + Vector3.down * (rise * 0.12f));
         float sway = Mathf.Sin(Time.time * bookBobSpeed * 0.7f) * 3f;
-        book.rotation = cameraTransform.rotation * Quaternion.Euler(bookRotationOffset + new Vector3(0f, sway, sway * 0.5f));
+        bool spellBook = spellBooks != null && spellBooks.Length > 0;
+        Vector3 rot = (spellBook ? spellBookRotation : bookRotationOffset) + new Vector3(0f, sway, sway * 0.5f);
+        book.rotation = cameraTransform.rotation * Quaternion.Euler(0f, rise * 360f, 0f) * Quaternion.Euler(rot)
+                        * Quaternion.Euler(0f, spellBook ? spellBookSpin : 0f, 0f);
+        if (spellBook)
+        {
+            const float c1 = 1.70158f, c3 = c1 + 1f;   // ease-out-back
+            float s = pop >= 1f ? 1f : 1f + c3 * Mathf.Pow(pop - 1f, 3f) + c1 * Mathf.Pow(pop - 1f, 2f);
+            book.localScale = bookBaseScale * Mathf.Max(0.01f, s);
+        }
     }
 
     /// <summary>

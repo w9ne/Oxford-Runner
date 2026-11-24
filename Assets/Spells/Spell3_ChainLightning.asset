@@ -19,11 +19,12 @@ MonoBehaviour:
   castTime: 0
   castMoveMultiplier: 1
   range: 60
-  damage: 28
+  damage: 24
   blastRadius: 4.5
   aimAssistRadius: 4
   skyHeight: 30
   knockback: 6
+  stunDuration: 1
   jumps: 0
   jumpRadius: 9
   damageFalloff: 0.75

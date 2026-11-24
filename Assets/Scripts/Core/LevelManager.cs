@@ -152,6 +152,8 @@ public class LevelManager : MonoBehaviour
     // Collider off at once, then the barrier sinks into the ground and disappears.
     private IEnumerator OpenGate(GameObject gate)
     {
+        var door = gate.GetComponent<GateDoor>();
+        if (door != null) { door.Open(); yield break; }
         foreach (var c in gate.GetComponentsInChildren<Collider>()) c.enabled = false;
         Transform t = gate.transform;
         Vector3 start = t.position, scale = t.localScale;

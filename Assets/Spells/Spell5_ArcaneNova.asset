@@ -19,7 +19,7 @@ MonoBehaviour:
   castTime: 0.3
   castMoveMultiplier: 0.25
   radius: 7
-  damage: 45
+  damage: 58.5
   knockback: 30
   destroysProjectiles: 1
   vfx: {fileID: 4288560566755803802, guid: 30fe5aa959ddf247db6ba7372803a7ea, type: 3}

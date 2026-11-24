@@ -28,6 +28,8 @@ public class PlayerParry : MonoBehaviour
     [SerializeField] private float barrierRadius = 1.1f;
     [Tooltip("Barrier centre, measured down from the camera.")]
     [SerializeField] private float chestDrop = 0.35f;
+    [Tooltip("Reflected bolts fly at the enemy closest to the crosshair within this many degrees.")]
+    [SerializeField] private float reflectAssistAngle = 25f;
     [Tooltip("Where the shield effect sits, in camera space (its pivot is at the shield's base).")]
     [SerializeField] private Vector3 barrierVfxOffset = new Vector3(0f, -0.6f, 0.9f);
     [SerializeField] private Color barrierColor = new Color(0.35f, 0.9f, 1f, 0.35f);
@@ -117,12 +119,31 @@ public class PlayerParry : MonoBehaviour
         Missed?.Invoke();
     }
 
+    // Visible enemy closest to the crosshair, within reflectAssistAngle degrees.
+    private Enemy EnemyInCrosshair()
+    {
+        if (view == null) return null;
+        Enemy best = null;
+        float bestAngle = reflectAssistAngle;
+        foreach (var e in Enemy.All)
+        {
+            if (e == null || e.IsDead) continue;
+            Vector3 c = e.VisualBounds.center;
+            float angle = Vector3.Angle(view.forward, c - view.position);
+            if (angle < bestAngle && Targeting.Clear(view.position, c, transform, e.transform)) { bestAngle = angle; best = e; }
+        }
+        return best;
+    }
+
     /// <summary>Called by a projectile that collided with the player. Returns true if it got parried.</summary>
     public bool TryCatch(SpellProjectile projectile, Vector3 contactPoint)
     {
         if (!WindowOpen || projectile == null || !projectile.Parryable) return false;
         Vector3 dir = Aim.DirectionFrom(contactPoint, view, transform);
+        Enemy aimed = EnemyInCrosshair();
+        if (aimed != null) dir = (aimed.VisualBounds.center - contactPoint).normalized;
         projectile.Reflect(contactPoint, dir, transform, Faction.Player, speedMultiplier, damageMultiplier, reflectedTint);
+        if (aimed != null) projectile.ForceTarget(aimed);   // home in on it even if it moves
 
         caughtThisWindow++;
         if (parryVfx != null) Destroy(Instantiate(parryVfx, contactPoint, Quaternion.identity), 2f);
