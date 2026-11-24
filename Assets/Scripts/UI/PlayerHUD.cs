@@ -20,6 +20,8 @@ public class PlayerHUD : MonoBehaviour
     private static readonly Color TrailColor = new Color(1f, 0.85f, 0.5f);
 
     private static readonly Color CueColor = new Color(0.85f, 0.3f, 1f, 1f);
+    private const float CueRange = 40f;
+    private Camera cam;
 
     private RectTransform healthFill, healthTrail, parryFill, cueRoot;
     private Image[] cueBrackets;
@@ -82,24 +84,55 @@ public class PlayerHUD : MonoBehaviour
             parryText.color = c;
         }
 
-        UpdateCue();
-
         flashAlpha = Mathf.MoveTowards(flashAlpha, 0f, Time.unscaledDeltaTime * 1.8f);
         flash.color = new Color(flashColor.r, flashColor.g, flashColor.b, flashAlpha);
     }
 
-    // Four corner brackets close in on the crosshair as an incoming shot approaches; they meet at impact.
+    // A purple square box with "PARRY" on top locks onto the nearest enemy shot flying at you.
+    // It just marks the shot (no timing guide): raise the barrier so the shot collides with it.
+    // Cyan while the barrier is up, grey while parry is on cooldown.
+    // LateUpdate so the box uses this frame's bolt position (bolts move in Update), led slightly
+    // ahead of the bolt so it never trails behind it.
+    private const float CueLead = 0.05f;   // seconds of bolt travel the box sits ahead
+    private void LateUpdate() => UpdateCue();
+
     private void UpdateCue()
     {
-        bool show = parry != null && parry.CueActive && !parry.OnCooldown;
+        SpellProjectile shot = parry != null ? IncomingShot() : null;
+        if (cam == null) cam = Camera.main;
+        Vector3 sp = shot != null && cam != null ? cam.WorldToScreenPoint(shot.transform.position + shot.transform.forward * shot.Speed * CueLead) : Vector3.back;
+        bool show = shot != null && sp.z > 0.1f;
         cueRoot.gameObject.SetActive(show);
         if (!show) return;
-        float t = parry.CueProgress;
-        cueRoot.localScale = Vector3.one * Mathf.Lerp(2.4f, 1f, t);
-        float a = Mathf.Lerp(0.55f, 1f, t);
-        var c = new Color(CueColor.r, CueColor.g, CueColor.b, a);
+
+        cueRoot.position = new Vector3(sp.x, sp.y, 0f);
+        float scale = Mathf.Clamp(8f / sp.z, 0.7f, 1.8f);
+        cueRoot.localScale = Vector3.one * scale;
+
+        Color c = parry.WindowOpen ? WindowColor : parry.OnCooldown ? CooldownColor : CueColor;
         foreach (var b in cueBrackets) b.color = c;
         cueText.color = c;
+        cueText.text = "PARRY";
+        cueText.rectTransform.localScale = Vector3.one / scale;        // constant text size
+        cueText.rectTransform.anchoredPosition = new Vector2(0f, 32f + 16f / scale);
+    }
+
+    // Nearest parryable enemy shot within range that is heading at the player.
+    private SpellProjectile IncomingShot()
+    {
+        Vector3 me = parry.BarrierCenter;
+        SpellProjectile best = null;
+        float bestD = CueRange * CueRange;
+        foreach (var p in SpellProjectile.Active)
+        {
+            if (p == null || !p.Parryable || p.Faction != Faction.Enemy) continue;
+            Vector3 to = me - p.transform.position;
+            float d = to.sqrMagnitude;
+            if (d >= bestD || Vector3.Dot(p.transform.forward, to.normalized) < 0.7f) continue;
+            best = p;
+            bestD = d;
+        }
+        return best;
     }
 
     private void Flash(Color color, float strength)
@@ -131,7 +164,7 @@ public class PlayerHUD : MonoBehaviour
     // ------------------------------------------------------------------ construction
     private void Build()
     {
-        Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        Font font = MenuUI.Font;
         var canvasGO = new GameObject("PlayerHUD", typeof(Canvas), typeof(CanvasScaler));
         canvasGO.transform.SetParent(transform, false);
         var canvas = canvasGO.GetComponent<Canvas>();
@@ -228,6 +261,7 @@ public class PlayerHUD : MonoBehaviour
         t.alignment = align;
         t.raycastTarget = false;
         t.horizontalOverflow = HorizontalWrapMode.Overflow;
+        t.verticalOverflow = VerticalWrapMode.Overflow;   // Cinzel has tall line metrics; never clip
         return t;
     }
 }

@@ -15,12 +15,29 @@ MonoBehaviour:
   displayName: Enemy Bolt
   cooldown: 0.7
   uiColor: {r: 1, g: 0.2, b: 0.85, a: 1}
+  gesture: 0
+  castTime: 0
+  castMoveMultiplier: 1
   projectilePrefab: {fileID: 6595125907547415685, guid: e4aae3d263667afa3b1d88a3d57eebd2, type: 3}
-  speed: 16
+  speed: 20
   lifetime: 5
-  hitRadius: 0.3
+  hitRadius: 0.2
   parryable: 1
+  projectileCount: 1
+  spreadAngle: 0
+  pierce: 0
+  homingTurnRate: 0
+  homingRange: 40
+  homingConeAngle: 60
+  lockOn: 0
+  lockTime: 0.35
+  lockRange: 70
+  lockConeAngle: 10
+  slowAmount: 0
+  slowDuration: 0
+  knockback: 0
+  freezeDuration: 0
   damage: 10
   impactRadius: 1.2
-  impactVfx: {fileID: 3660790735904809363, guid: da55c60747b805c79a4e07c485c0ead5, type: 3}
-  impactVfxLifetime: 2.5
+  impactVfx: {fileID: 3048004855815559603, guid: 334fc71156978b37bac86908c7617f66, type: 3}
+  impactVfxLifetime: 2

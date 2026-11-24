@@ -6300,51 +6300,51 @@ MonoBehaviour:
   - name: Stage 1
     waves:
     - enemyCount: 3
-      enemyHealth: 30
+      enemyHealth: 50
       enemySpeed: 3.5
       enemyFireInterval: 3
       spawnInterval: 1.2
     - enemyCount: 4
-      enemyHealth: 30
+      enemyHealth: 50
       enemySpeed: 3.5
       enemyFireInterval: 2.8
       spawnInterval: 1
     - enemyCount: 5
-      enemyHealth: 35
+      enemyHealth: 55
       enemySpeed: 3.8
       enemyFireInterval: 2.6
       spawnInterval: 1
   - name: Stage 2
     waves:
     - enemyCount: 5
-      enemyHealth: 45
+      enemyHealth: 60
       enemySpeed: 4
       enemyFireInterval: 2.4
       spawnInterval: 0.9
     - enemyCount: 6
-      enemyHealth: 45
+      enemyHealth: 65
       enemySpeed: 4
       enemyFireInterval: 2.2
       spawnInterval: 0.8
     - enemyCount: 8
-      enemyHealth: 50
+      enemyHealth: 70
       enemySpeed: 4.2
       enemyFireInterval: 2
       spawnInterval: 0.8
   - name: Stage 3
     waves:
     - enemyCount: 7
-      enemyHealth: 60
+      enemyHealth: 80
       enemySpeed: 4.5
       enemyFireInterval: 1.8
       spawnInterval: 0.7
     - enemyCount: 9
-      enemyHealth: 60
+      enemyHealth: 85
       enemySpeed: 4.5
       enemyFireInterval: 1.6
       spawnInterval: 0.6
     - enemyCount: 11
-      enemyHealth: 70
+      enemyHealth: 95
       enemySpeed: 4.8
       enemyFireInterval: 1.5
       spawnInterval: 0.6

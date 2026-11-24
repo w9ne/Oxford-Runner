@@ -4,7 +4,7 @@ using UnityEngine;
 /// <summary>
 /// Stationary practice target. Bobs in place, flashes when hit, pops when destroyed.
 /// </summary>
-public class TrainingDummy : MonoBehaviour, IDamageable
+public class TrainingDummy : MonoBehaviour, IDamageable, IHealthReadout
 {
     [SerializeField] private float maxHealth = 15f;   // one fireball
     [SerializeField] private Color hitColor = new Color(1f, 0.35f, 0.2f);
@@ -17,6 +17,7 @@ public class TrainingDummy : MonoBehaviour, IDamageable
     public bool IsDead { get; private set; }
     public Faction Faction => Faction.Enemy;
     public float Health { get; private set; }
+    public float MaxHealth => maxHealth;
 
     private Renderer[] renderers;
     private MaterialPropertyBlock block;
@@ -33,6 +34,7 @@ public class TrainingDummy : MonoBehaviour, IDamageable
             baseColor = renderers[0].sharedMaterial.GetColor(ColorId);
         basePos = transform.position;
         phase = UnityEngine.Random.value * Mathf.PI * 2f;
+        if (GetComponent<WorldHealthBar>() == null) gameObject.AddComponent<WorldHealthBar>();
     }
 
     public void TakeDamage(DamageInfo info) => TakeDamage(info.amount);

@@ -117,7 +117,7 @@ public static class TutorialBuilder
         var gate2 = gate2GO.AddComponent<TutorialGate>();
         SetArray(gate2, "targets", new Object[] { sentinel });
         stations.Add(new Station { title = "Parry", zStart = 165f, zEnd = 172f, floorY = 4f, gateRef = gate2,
-            text = "RIGHT CLICK just before a bolt hits to parry it back where you aim.\n" +
+            text = "RIGHT CLICK raises a barrier for 0.3s. Bolts that hit it fly back where you aim.\n" +
                    "Only parried bolts hurt the sentinel. Missing = 2s cooldown." });
 
         // ---- 11. Exit portal -----------------------------------------------------------------

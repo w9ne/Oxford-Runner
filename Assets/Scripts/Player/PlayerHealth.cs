@@ -24,16 +24,19 @@ public class PlayerHealth : MonoBehaviour, IDamageable
 
     private float invulnerableUntil;
     private FirstPersonController controller;
+    private PlayerParry parry;
 
     private void Awake()
     {
         Health = maxHealth;
         controller = GetComponent<FirstPersonController>();
+        parry = GetComponent<PlayerParry>();
     }
 
     public void TakeDamage(DamageInfo info)
     {
         if (IsDead || info.source == Faction.Player || Time.time < invulnerableUntil) return;
+        if (parry != null && parry.WindowOpen) return;   // parry barrier is up: blocks splash damage too
         Health = Mathf.Max(0f, Health - info.amount);
         invulnerableUntil = Time.time + invulnerabilityTime;
         Damaged?.Invoke(info);

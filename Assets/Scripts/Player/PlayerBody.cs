@@ -3,8 +3,9 @@ using UnityEngine;
 /// <summary>
 /// Full-body first-person avatar (Mirror's Edge style "body awareness").
 ///  - Drives an 8-way locomotion blend tree from the player's Rigidbody velocity.
-///  - Right hand holds an open spellbook, pinned to the camera with humanoid IK so it's always in view.
-///  - Left hand thrusts out toward the cast point whenever a spell is cast.
+///  - Right hand is held out palm-down (pinned to the camera with humanoid IK) and the open
+///    spellbook floats just above it, bobbing gently.
+///  - Left hand moves when a spell is cast; the motion depends on the spell's CastGesture.
 ///  - Chest/head follow the camera pitch via LookAt IK; neck/head are collapsed so the camera sees out.
 ///  - Slides use a hips-pivoted "legs forward" pose; wall-runs lean the body.
 ///  - A camera-clearance solver pushes the body back whenever any upper-body bone gets too close
@@ -33,11 +34,11 @@ public class PlayerBody : MonoBehaviour
     [SerializeField] private FirstPersonController controller;
     [SerializeField] private Transform cameraTransform;
     [SerializeField] private SpellCaster spellCaster;
-    [SerializeField] private Transform book;                 // held prop, parented to the right hand
+    [SerializeField] private Transform book;                 // floating prop, placed above the right hand
     [SerializeField] private Transform castPoint;            // where spells spawn (left hand reaches here)
 
     [Header("Placement")]
-    [SerializeField] private Vector3 standOffset = new Vector3(0f, -1f, -0.05f);  // feet relative to Player
+    [SerializeField] private Vector3 standOffset = new Vector3(0f, -1.05f, -0.15f);  // feet relative to Player
     [SerializeField] private bool hideHead = true;
     [Tooltip("How far the body slides back when looking straight down (predictive; the clearance solver handles the rest).")]
     [SerializeField] private float lookDownBackShift = 0.25f;
@@ -55,11 +56,22 @@ public class PlayerBody : MonoBehaviour
 
     [Header("Book Hand (right, IK)")]
     [Tooltip("Where the right hand sits, in camera space (x right, y up, z forward).")]
-    [SerializeField] private Vector3 handOffset = new Vector3(0.3f, -0.16f, 0.3f);
+    [SerializeField] private Vector3 handOffset = new Vector3(0.2f, -0.21f, 0.46f);
     [Tooltip("Hand rotation in camera space.")]
-    [SerializeField] private Vector3 handRotationOffset = new Vector3(63.6f, 188.2f, 353.1f);
+    [SerializeField] private Vector3 handRotationOffset = new Vector3(11.7f, 358.8f, 91.8f);   // palm down, fingers forward
     [SerializeField] private Vector3 elbowHintOffset = new Vector3(0.45f, -0.5f, 0.05f);
     [SerializeField, Range(0f, 1f)] private float handIKWeight = 1f;
+
+    [Header("Floating Book")]
+    [Tooltip("How far above the right palm the book hovers (camera up).")]
+    [SerializeField] private float bookHover = 0.2f;
+    [Tooltip("Extra camera-space offset for the book (x right, y up, z forward).")]
+    [SerializeField] private Vector3 bookOffset = Vector3.zero;
+    [Tooltip("Book rotation in camera space (pages tilted toward the view).")]
+    [SerializeField] private Vector3 bookRotationOffset = new Vector3(0f, 90f, 318.7f);   // pages open toward the view
+    [SerializeField] private float bookBobAmount = 0.012f;
+    [SerializeField] private float bookBobSpeed = 2.2f;
+    [SerializeField] private float bookFollowSharpness = 18f;
 
     [Header("Cast Hand (left, IK)")]
     [Tooltip("Left palm rotation in camera space while casting (palm forward, fingers up).")]
@@ -109,6 +121,11 @@ public class PlayerBody : MonoBehaviour
     private float castWeight, castHoldUntil;
     private float slideBlend, wallLean;
     private float clearancePush;
+    private CastGesture gesture = CastGesture.Thrust;
+    private float castStartTime = -999f;
+    private Vector3 bookLocal;                 // smoothed book position in camera space
+    private bool bookPlaced;
+    private Transform rightHand;
 
     public Transform Book => book;
     public float CastWeight => castWeight;
@@ -146,8 +163,9 @@ public class PlayerBody : MonoBehaviour
             clearanceBones = bones.ToArray();
             clearanceRadii = radii.ToArray();
 
+            rightHand = animator.GetBoneTransform(HumanBodyBones.RightHand);
             var hips = animator.GetBoneTransform(HumanBodyBones.Hips);
-            if (hips != null) hipsHeight = transform.InverseTransformPoint(hips.position).y;
+            if (hips != null) hipsHeight = hips.position.y - transform.position.y;   // world units (body may be scaled)
         }
 
         // The camera sits inside the mesh bounds; make sure the body never gets culled.
@@ -193,8 +211,67 @@ public class PlayerBody : MonoBehaviour
 
     private void OnSpellCast(Spell spell)
     {
-        castKick = 1f;
-        castHoldUntil = Time.time + castHoldTime;
+        gesture = spell != null ? spell.gesture : CastGesture.Thrust;
+        castStartTime = Time.time;
+        castKick = gesture == CastGesture.Thrust ? 1f : 0.4f;
+        castHoldUntil = Time.time + GestureHold(gesture);
+    }
+
+    private float GestureHold(CastGesture g)
+    {
+        switch (g)
+        {
+            case CastGesture.Sweep: return 0.35f;
+            case CastGesture.Point: return 0.45f;
+            case CastGesture.Flurry: return 0.55f;
+            case CastGesture.Slam: return 0.5f;
+            default: return castHoldTime;
+        }
+    }
+
+    /// <summary>
+    /// Per-spell left-hand motion: an offset in camera space and an extra palm rotation, as a
+    /// function of the time since the cast.
+    /// </summary>
+    private Vector3 GestureOffset(out Quaternion extraRot)
+    {
+        float t = Time.time - castStartTime;
+        extraRot = Quaternion.identity;
+        switch (gesture)
+        {
+            case CastGesture.Sweep:
+            {
+                // Slash in from the left, rolling the palm as it goes.
+                float u = Mathf.Clamp01(t / 0.2f);
+                float e = 1f - (1f - u) * (1f - u);
+                extraRot = Quaternion.Euler(0f, 0f, Mathf.Lerp(-70f, 15f, e));
+                return new Vector3(Mathf.Lerp(-0.3f, 0.06f, e), Mathf.Lerp(0.06f, -0.03f, e), Mathf.Lerp(-0.05f, 0.03f, e));
+            }
+            case CastGesture.Point:
+            {
+                // Reach out high and far; the hand trembles with the current.
+                float jx = (Mathf.PerlinNoise(t * 40f, 0f) - 0.5f) * 0.02f;
+                float jy = (Mathf.PerlinNoise(0f, t * 40f) - 0.5f) * 0.02f;
+                extraRot = Quaternion.Euler(-25f, 0f, 0f);
+                return new Vector3(0.06f + jx, 0.09f + jy, 0.1f);
+            }
+            case CastGesture.Flurry:
+            {
+                // Quick circles, like flicking out missile after missile.
+                float a = t * 30f;
+                return new Vector3(Mathf.Cos(a) * 0.05f, Mathf.Sin(a) * 0.05f, Mathf.Abs(Mathf.Sin(a * 0.5f)) * 0.05f);
+            }
+            case CastGesture.Slam:
+            {
+                // Lift the palm up, then slam it down; palm turns to face the ground.
+                float u = Mathf.Clamp01(t / 0.46f);   // slam lands at ~0.3 s, when the nova goes off
+                float y = u < 0.45f ? Mathf.SmoothStep(0f, 0.2f, u / 0.45f) : Mathf.Lerp(0.2f, -0.16f, Mathf.SmoothStep(0f, 1f, (u - 0.45f) / 0.2f));
+                extraRot = Quaternion.Euler(Mathf.Lerp(0f, 75f, Mathf.Clamp01(u * 2f)), 0f, 0f);
+                return new Vector3(0.04f, y, -0.04f);
+            }
+            default:
+                return Vector3.zero;
+        }
     }
 
     private void Update()
@@ -304,12 +381,14 @@ public class PlayerBody : MonoBehaviour
         Vector3 castTarget = castPoint != null
             ? castPoint.position - cameraTransform.forward * palmBehindCastPoint
             : cameraTransform.TransformPoint(new Vector3(-0.22f, -0.12f, 0.36f));
-        castTarget += cameraTransform.forward * (castKick * castKickDistance) + cameraTransform.TransformVector(swayOffset);
+        Vector3 gestureOffset = GestureOffset(out Quaternion gestureRot);
+        castTarget += cameraTransform.forward * (castKick * castKickDistance)
+                      + cameraTransform.TransformVector(swayOffset + gestureOffset);
         Transform space = transform.parent != null ? transform.parent : transform;
         Vector3 restTarget = space.TransformPoint(leftHandSlideRest);
         Vector3 target = Vector3.Lerp(restTarget, castTarget, w > 0f ? cast / w : 0f);
 
-        Quaternion rot = cameraTransform.rotation * Quaternion.Euler(leftHandRotationOffset);
+        Quaternion rot = cameraTransform.rotation * gestureRot * Quaternion.Euler(leftHandRotationOffset);
         LastLeftHandGoal = rot;
 
         animator.SetIKPositionWeight(AvatarIKGoal.LeftHand, w);
@@ -324,6 +403,22 @@ public class PlayerBody : MonoBehaviour
     {
         if (hideHead && hiddenBone != null) hiddenBone.localScale = Vector3.one * 0.0001f;
         UpdateClearance();
+        UpdateFloatingBook();
+    }
+
+    // The book hovers above the right palm. Smoothed in camera space so it trails the hand a
+    // touch (feels floaty) without lagging behind when the player moves fast.
+    private void UpdateFloatingBook()
+    {
+        if (book == null || cameraTransform == null || rightHand == null) return;
+        float bob = Mathf.Sin(Time.time * bookBobSpeed) * bookBobAmount;
+        Vector3 target = cameraTransform.InverseTransformPoint(rightHand.position)
+                         + Vector3.up * (bookHover + bob) + bookOffset;
+        bookLocal = bookPlaced ? Vector3.Lerp(bookLocal, target, 1f - Mathf.Exp(-bookFollowSharpness * Time.deltaTime)) : target;
+        bookPlaced = true;
+        book.position = cameraTransform.TransformPoint(bookLocal);
+        float sway = Mathf.Sin(Time.time * bookBobSpeed * 0.7f) * 3f;
+        book.rotation = cameraTransform.rotation * Quaternion.Euler(bookRotationOffset + new Vector3(0f, sway, sway * 0.5f));
     }
 
     /// <summary>

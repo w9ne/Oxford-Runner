@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7bfac9f9daa3421cae39f0d3b58c12f, type: 3}
+  m_Name: Spell3_ChainLightning
+  m_EditorClassIdentifier: Assembly-CSharp::ChainLightningSpell
+  displayName: Lightning Strike
+  cooldown: 0.8
+  uiColor: {r: 0.45, g: 0.7, b: 1, a: 1}
+  gesture: 2
+  castTime: 0
+  castMoveMultiplier: 1
+  range: 60
+  damage: 28
+  blastRadius: 4.5
+  aimAssistRadius: 4
+  skyHeight: 30
+  knockback: 6
+  jumps: 0
+  jumpRadius: 9
+  damageFalloff: 0.75
+  boltColor: {r: 0.45, g: 0.7, b: 1, a: 1}
+  boltWidth: 0.35
+  hitVfx: {fileID: 7695199487361797165, guid: 9c501dd6441ccc9dbb658fe176021c1b, type: 3}
+  hitVfxLifetime: 2
+  hitVfxScale: 1

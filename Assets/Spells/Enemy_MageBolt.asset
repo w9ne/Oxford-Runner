@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c42d8f06e2bddd6dbb9df0bc20a424e4, type: 3}
+  m_Name: Enemy_MageBolt
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectileSpell
+  displayName: Mage Bolt
+  cooldown: 0.7
+  uiColor: {r: 1, g: 0.2, b: 0.85, a: 1}
+  gesture: 0
+  castTime: 0
+  castMoveMultiplier: 1
+  projectilePrefab: {fileID: 6595125907547415685, guid: e4aae3d263667afa3b1d88a3d57eebd2, type: 3}
+  speed: 20
+  lifetime: 5
+  hitRadius: 0.2
+  parryable: 1
+  projectileCount: 1
+  spreadAngle: 0
+  pierce: 0
+  homingTurnRate: 0
+  homingRange: 40
+  homingConeAngle: 60
+  lockOn: 0
+  lockTime: 0.35
+  lockRange: 70
+  lockConeAngle: 10
+  slowAmount: 0
+  slowDuration: 0
+  knockback: 0
+  freezeDuration: 0
+  damage: 6
+  impactRadius: 0.9
+  impactVfx: {fileID: 3048004855815559603, guid: 334fc71156978b37bac86908c7617f66, type: 3}
+  impactVfxLifetime: 2

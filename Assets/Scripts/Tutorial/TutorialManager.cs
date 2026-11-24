@@ -116,7 +116,7 @@ public class TutorialManager : MonoBehaviour
         stepLabel.text = "TUTORIAL COMPLETE";
         titleText.text = FormatTime(time) + (newBest ? "  NEW BEST!" : "");
         bodyText.text = $"Best: {FormatTime(best)}     Checkpoint respawns: {respawns}";
-        extraText.text = "Loading the arena...";
+        extraText.text = nextScene == GameFlow.MainMenuScene ? "Returning to the main menu..." : "Loading the next area...";
         LayoutCard();
         if (promptFade != null) StopCoroutine(promptFade);
         promptFade = StartCoroutine(Pop(promptGroup));
@@ -169,7 +169,7 @@ public class TutorialManager : MonoBehaviour
 
     private void BuildUI()
     {
-        Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        Font font = MenuUI.Font;
 
         var canvasGO = new GameObject("TutorialUI", typeof(Canvas), typeof(CanvasScaler));
         canvasGO.transform.SetParent(transform, false);

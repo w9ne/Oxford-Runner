@@ -17,7 +17,7 @@ public class FirstPersonController : MonoBehaviour
     [SerializeField] private Transform cameraPivot;
 
     [Header("Look")]
-    [SerializeField] private float mouseSensitivity = 2f;
+    // Mouse sensitivity lives in GameSettings (PlayerPrefs) so the Settings menu can change it.
     [SerializeField] private float maxPitch = 85f;
 
     [Header("Movement")]
@@ -52,12 +52,12 @@ public class FirstPersonController : MonoBehaviour
     [SerializeField] private float wallCheckDistance = 0.8f;
     [SerializeField] private float wallRunSpeed = 10f;          // minimum speed when grabbing a wall
     [SerializeField] private float wallRunMaxEntrySpeed = 18f;  // faster entries (slide jump, dash) keep speed up to this
-    [SerializeField] private float wallRunDeceleration = 3f;    // speed lost per second along the wall
+    [SerializeField] private float wallRunDeceleration = 0f;    // speed lost per second along the wall (0 = keep entry speed)
     [SerializeField] private float wallRunMinSpeed = 3f;
-    [SerializeField] private float wallRunGravity = 4f;         // downward acceleration while on the wall
+    [SerializeField] private float wallRunGravity = 2.5f;        // downward acceleration while on the wall
     [SerializeField] private float wallRunMaxFallSpeed = 4f;    // cap so it's a slow slide down, not a drop
     [SerializeField] private float wallRunMaxEntryUpSpeed = 4f; // upward speed kept when grabbing mid-jump
-    [SerializeField] private float wallRunMaxTime = 3.0f;
+    [SerializeField] private float wallRunMaxTime = 4.0f;
     [SerializeField] private float wallJumpUpVelocity = 7f;
     [SerializeField] private float wallJumpPushVelocity = 8f;
     [SerializeField] private float minWallRunHeight = 0.8f;   // must be this far off the ground
@@ -97,6 +97,7 @@ public class FirstPersonController : MonoBehaviour
 
     public bool IsGrounded => isGrounded;
     public bool IsWallRunning => isWallRunning;
+    private SpellCaster spellCaster;
     public bool IsDashing => isDashing;
     public bool IsSliding => isSliding;
     /// <summary>Holds the slide as if the key were down (for testing / scripted sequences).</summary>
@@ -109,6 +110,7 @@ public class FirstPersonController : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         capsule = GetComponent<CapsuleCollider>();
+        spellCaster = GetComponent<SpellCaster>();
         rb.freezeRotation = true;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
@@ -139,14 +141,15 @@ public class FirstPersonController : MonoBehaviour
     private void Update()
     {
         // Look
-        if (Cursor.lockState == CursorLockMode.Locked)
+        float sensitivity = GameSettings.MouseSensitivity;   // set from Settings (main menu / pause menu)
+        if (Cursor.lockState == CursorLockMode.Locked && !GameFlow.Paused)
         {
-            yaw += Input.GetAxisRaw("Mouse X") * mouseSensitivity;
-            pitch -= Input.GetAxisRaw("Mouse Y") * mouseSensitivity;
+            yaw += Input.GetAxisRaw("Mouse X") * sensitivity;
+            pitch -= Input.GetAxisRaw("Mouse Y") * sensitivity;
             pitch = Mathf.Clamp(pitch, -maxPitch, maxPitch);
         }
-        if (Input.GetKeyDown(KeyCode.Escape)) { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
-        if (Input.GetMouseButtonDown(0) && Cursor.lockState != CursorLockMode.Locked)
+        // Escape is handled by the pause menu. Clicking back into the game re-locks the cursor.
+        if (Input.GetMouseButtonDown(0) && Cursor.lockState != CursorLockMode.Locked && !GameFlow.Paused)
         { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
 
         moveInput = ForceMoveInput ?? new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
@@ -246,9 +249,18 @@ public class FirstPersonController : MonoBehaviour
     {
         Vector3 vel = rb.linearVelocity;
         Vector3 horizontal = new Vector3(vel.x, 0f, vel.z);
-        Vector3 target = WishDirection() * moveSpeed;
+        float castSlow = spellCaster != null ? spellCaster.MoveMultiplier : 1f;
+        Vector3 target = WishDirection() * moveSpeed * castSlow;
 
         float accel = isGrounded ? groundAcceleration : airAcceleration;
+        if (castSlow < 1f)
+        {
+            // Winding up a heavy spell: bleed speed hard (even in the air) until it goes off.
+            horizontal = Vector3.MoveTowards(horizontal, target, groundAcceleration * 2f * Time.fixedDeltaTime);
+            rb.linearVelocity = new Vector3(horizontal.x, vel.y, horizontal.z);
+            if (!isGrounded) rb.AddForce(Vector3.down * extraGravity, ForceMode.Acceleration);
+            return;
+        }
         // In the air with no input, keep momentum (from dashes / wall jumps / slide jumps).
         if (!isGrounded && moveInput == Vector2.zero) target = horizontal;
         // In the air, don't brake momentum above move speed in the input direction.

@@ -3,26 +3,37 @@ using System.Collections;
 using UnityEngine;
 
 /// <summary>
-/// Parry (no blocking). Right click opens a short parry window. Any parryable enemy projectile that
-/// reaches the player, or comes within <see cref="catchRadius"/> of the camera, while the window is
-/// open is reflected toward whatever is under the crosshair, faster and harder.
-/// A window that catches nothing puts parry on cooldown; a successful parry has no cooldown.
+/// Parry barrier. Right click raises a magic barrier for <see cref="window"/> seconds (0.3).
+/// Any parryable enemy projectile that actually HITS the player (collides with the player's capsule)
+/// while it is up is reflected toward the crosshair, 2x faster and harder. Nothing is caught early or by
+/// proximity. Splash damage is also blocked while the barrier is up.
+/// A barrier that catches nothing puts parry on cooldown; a successful parry has no cooldown.
 /// </summary>
 [RequireComponent(typeof(FirstPersonController))]
 public class PlayerParry : MonoBehaviour
 {
+    /// <summary>The player's parry (one player per scene). Projectiles test against its barrier.</summary>
+    public static PlayerParry Instance { get; private set; }
+
     [Header("Timing")]
     [SerializeField] private int mouseButton = 1;                // right click
     [SerializeField] private float window = 0.3f;
     [SerializeField] private float missCooldown = 2f;
 
-    [Header("Catch")]
-    [Tooltip("Projectiles this close to the camera during the window are parried before they hit.")]
-    [SerializeField] private float catchRadius = 2.5f;
+    [Header("Effects (Hovl, set by Oxford Runner/Setup Spell VFX)")]
+    [SerializeField] private GameObject barrierVfx;      // shield shown while the barrier is up
+    [SerializeField] private GameObject parryVfx;        // burst where a bolt got parried
+
+    [Header("Barrier (enemy bolts that enter this sphere while it is up get reflected)")]
+    [SerializeField] private float barrierRadius = 1.1f;
+    [Tooltip("Barrier centre, measured down from the camera.")]
+    [SerializeField] private float chestDrop = 0.35f;
+    [Tooltip("Where the shield effect sits, in camera space (its pivot is at the shield's base).")]
+    [SerializeField] private Vector3 barrierVfxOffset = new Vector3(0f, -0.6f, 0.9f);
+    [SerializeField] private Color barrierColor = new Color(0.35f, 0.9f, 1f, 0.35f);
 
     [Header("Reflection")]
     [SerializeField] private Transform view;                     // the camera
-    [SerializeField] private Transform reflectOrigin;            // where reflected shots leave (left hand cast point)
     [SerializeField] private float speedMultiplier = 2f;
     [SerializeField] private float damageMultiplier = 3f;
     [SerializeField] private Color reflectedTint = new Color(0.35f, 0.9f, 1f);
@@ -32,11 +43,11 @@ public class PlayerParry : MonoBehaviour
     [SerializeField] private float hitStopDuration = 0.07f;      // real-time seconds
     [SerializeField, Range(0f, 1f)] private float hitStopTimeScale = 0.05f;
 
-    /// <summary>Right click pressed and the window opened.</summary>
+    /// <summary>Right click pressed and the barrier went up.</summary>
     public event Action WindowOpened;
     /// <summary>A projectile was reflected.</summary>
     public event Action<SpellProjectile> Parried;
-    /// <summary>The window closed without catching anything (cooldown started).</summary>
+    /// <summary>The barrier dropped without catching anything (cooldown started).</summary>
     public event Action Missed;
 
     public bool WindowOpen => Time.time < windowEnd;
@@ -45,29 +56,32 @@ public class PlayerParry : MonoBehaviour
     public float CooldownRemaining => Mathf.Max(0f, cooldownEnd - Time.time);
     public float CooldownDuration => missCooldown;
     public float WindowDuration => window;
+    public float BarrierRadius => barrierRadius;
+    public Vector3 BarrierCenter => view != null ? view.position + Vector3.down * chestDrop : transform.position;
 
-    /// <summary>
-    /// True while an incoming parryable shot is close enough that pressing parry *now* will catch it.
-    /// The HUD shows the "parry now" cue from this.
-    /// </summary>
-    public bool CueActive { get; private set; }
-    /// <summary>0 when the cue first appears, 1 at the moment of impact.</summary>
-    public float CueProgress { get; private set; }
-
-    private float windowEnd = -1f, cooldownEnd = -1f;
-    private bool windowPending;      // a window is (or was) open and hasn't been resolved yet
+    private float windowEnd = -1f, cooldownEnd = -1f, openedAt = -1f, flashUntil = -1f;
+    private bool windowPending;      // a barrier is (or was) up and hasn't been resolved yet
     private int caughtThisWindow;
     private PlayerHealth health;
     private bool hitStopping;
+    private Transform barrierVisual;
+    private Material barrierMaterial;
 
     private void Awake()
     {
+        Instance = this;
         health = GetComponent<PlayerHealth>();
         if (view == null)
         {
             var cam = GetComponentInChildren<Camera>();
             if (cam != null) view = cam.transform;
         }
+        BuildBarrierVisual();
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
     }
 
     private void Update()
@@ -75,47 +89,24 @@ public class PlayerParry : MonoBehaviour
         if (Input.GetMouseButtonDown(mouseButton) && Cursor.lockState == CursorLockMode.Locked && Ready)
             OpenWindow();
 
-        if (WindowOpen) ScanForIncoming();
-        else if (windowPending) ResolveWindow();
-
-        UpdateCue();
-    }
-
-    // A shot is caught once it's within catchRadius (or touching us) while the window is open.
-    // So a press succeeds if it happens between "time to reach catchRadius + window" and impact.
-    // The cue covers exactly that span, so pressing whenever it's visible always works.
-    private void UpdateCue()
-    {
-        CueActive = false;
-        if (view == null) return;
-
-        Vector3 eye = view.position;
-        float bestTti = float.MaxValue, bestLead = 1f;
-        foreach (var p in SpellProjectile.Active)
-        {
-            if (p == null || !p.Parryable || p.Faction == Faction.Player || p.Speed <= 0f) continue;
-            Vector3 toEye = eye - p.transform.position;
-            float dist = toEye.magnitude;
-            if (Vector3.Dot(p.transform.forward, toEye / Mathf.Max(dist, 0.001f)) < 0.8f) continue;   // not coming at us
-            float tti = dist / p.Speed;
-            float lead = window + catchRadius / p.Speed;
-            if (tti <= lead && tti < bestTti) { bestTti = tti; bestLead = lead; }
-        }
-
-        if (bestTti < float.MaxValue)
-        {
-            CueActive = true;
-            CueProgress = 1f - Mathf.Clamp01(bestTti / bestLead);
-        }
+        if (!WindowOpen && windowPending) ResolveWindow();
+        UpdateBarrierVisual();
     }
 
     private void OpenWindow()
     {
         windowEnd = Time.time + window;
+        openedAt = Time.time;
         windowPending = true;
         caughtThisWindow = 0;
+        if (barrierVfx != null && view != null)
+        {
+            var fx = Instantiate(barrierVfx, view);
+            fx.transform.localPosition = barrierVfxOffset;
+            fx.transform.localRotation = Quaternion.identity;
+            Destroy(fx, window + 0.35f);
+        }
         WindowOpened?.Invoke();
-        ScanForIncoming();
     }
 
     private void ResolveWindow()
@@ -126,42 +117,20 @@ public class PlayerParry : MonoBehaviour
         Missed?.Invoke();
     }
 
-    // Proactively catch shots that are about to hit, so a parry doesn't depend on exact collision timing.
-    private void ScanForIncoming()
-    {
-        if (view == null) return;
-        Vector3 eye = view.position;
-        float r2 = catchRadius * catchRadius;
-        SpellProjectile best = null;
-        float bestD = float.MaxValue;
-        foreach (var p in SpellProjectile.Active)
-        {
-            if (p == null || !p.Parryable || p.Faction == Faction.Player) continue;
-            float d = (p.transform.position - eye).sqrMagnitude;
-            if (d < r2 && d < bestD) { best = p; bestD = d; }
-        }
-        // Reflect outside the enumeration (Reflect doesn't change the set, but keep it tidy).
-        if (best != null) Reflect(best);
-    }
-
-    /// <summary>Called by a projectile that's touching the player. Returns true if it got parried.</summary>
-    public bool TryCatch(SpellProjectile projectile)
+    /// <summary>Called by a projectile that collided with the player. Returns true if it got parried.</summary>
+    public bool TryCatch(SpellProjectile projectile, Vector3 contactPoint)
     {
         if (!WindowOpen || projectile == null || !projectile.Parryable) return false;
-        Reflect(projectile);
-        return true;
-    }
-
-    private void Reflect(SpellProjectile p)
-    {
-        Vector3 origin = reflectOrigin != null ? reflectOrigin.position : view.position + view.forward * 0.8f;
-        Vector3 dir = Aim.DirectionFrom(origin, view, transform);
-        p.Reflect(origin, dir, transform, Faction.Player, speedMultiplier, damageMultiplier, reflectedTint);
+        Vector3 dir = Aim.DirectionFrom(contactPoint, view, transform);
+        projectile.Reflect(contactPoint, dir, transform, Faction.Player, speedMultiplier, damageMultiplier, reflectedTint);
 
         caughtThisWindow++;
+        if (parryVfx != null) Destroy(Instantiate(parryVfx, contactPoint, Quaternion.identity), 2f);
+        flashUntil = Time.unscaledTime + 0.15f;
         if (health != null) health.Heal(healOnParry);
-        Parried?.Invoke(p);
+        Parried?.Invoke(projectile);
         if (!hitStopping) StartCoroutine(HitStop());
+        return true;
     }
 
     // A tiny freeze-frame sells the impact.
@@ -173,5 +142,47 @@ public class PlayerParry : MonoBehaviour
         yield return new WaitForSecondsRealtime(hitStopDuration);
         Time.timeScale = previous <= hitStopTimeScale ? 1f : previous;
         hitStopping = false;
+    }
+
+    // ---------- Barrier visual ----------
+    // A translucent shell in front of the camera that pops up when the barrier is raised and fades
+    // over the window, flashing white on a successful parry.
+    private void BuildBarrierVisual()
+    {
+        if (view == null) return;
+        var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        go.name = "ParryBarrier";
+        DestroyImmediate(go.GetComponent<Collider>());
+        go.transform.SetParent(view, false);
+        var mr = go.GetComponent<MeshRenderer>();
+        barrierMaterial = new Material(Shader.Find("Sprites/Default")) { name = "ParryBarrier" };
+        mr.sharedMaterial = barrierMaterial;
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        mr.receiveShadows = false;
+        barrierVisual = go.transform;
+        go.SetActive(false);
+    }
+
+    private void UpdateBarrierVisual()
+    {
+        if (barrierVisual == null) return;
+        bool flashing = Time.unscaledTime < flashUntil;
+        bool show = WindowOpen || flashing;
+        if (barrierVisual.gameObject.activeSelf != show) barrierVisual.gameObject.SetActive(show);
+        if (!show) return;
+
+        float t = Mathf.Clamp01((Time.time - openedAt) / window);
+        float pop = t < 0.2f ? Mathf.Lerp(0.6f, 1.05f, t / 0.2f) : Mathf.Lerp(1.05f, 1f, (t - 0.2f) / 0.8f);
+        // A flattened shell on the front of the barrier sphere, just under the eye line.
+        barrierVisual.localPosition = new Vector3(0f, -chestDrop * 0.5f, barrierRadius * 0.8f);
+        barrierVisual.localScale = new Vector3(1.7f, 1.3f, 0.25f) * pop;
+        float alpha = flashing ? 0.7f : Mathf.Lerp(barrierColor.a, barrierColor.a * 0.4f, t);
+        barrierMaterial.color = flashing ? new Color(1f, 1f, 1f, alpha) : new Color(barrierColor.r, barrierColor.g, barrierColor.b, alpha);
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        Gizmos.color = new Color(0.35f, 0.9f, 1f, 0.5f);
+        Gizmos.DrawWireSphere(BarrierCenter, barrierRadius);
     }
 }

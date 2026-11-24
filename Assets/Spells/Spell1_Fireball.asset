@@ -15,12 +15,29 @@ MonoBehaviour:
   displayName: Fireball
   cooldown: 0.7
   uiColor: {r: 1, g: 0.6, b: 0.2, a: 1}
+  gesture: 0
+  castTime: 0
+  castMoveMultiplier: 1
   projectilePrefab: {fileID: 6595125907547415685, guid: 700c35f1748c0dcc2861ebe8291d4054, type: 3}
   speed: 35
   lifetime: 3
   hitRadius: 0.25
   parryable: 0
+  projectileCount: 1
+  spreadAngle: 0
+  pierce: 0
+  homingTurnRate: 0
+  homingRange: 40
+  homingConeAngle: 60
+  lockOn: 0
+  lockTime: 0.35
+  lockRange: 70
+  lockConeAngle: 10
+  slowAmount: 0
+  slowDuration: 0
+  knockback: 0
+  freezeDuration: 0
   damage: 15
-  impactRadius: 2
-  impactVfx: {fileID: 3660790735904809363, guid: da55c60747b805c79a4e07c485c0ead5, type: 3}
-  impactVfxLifetime: 2.5
+  impactRadius: 4
+  impactVfx: {fileID: 5811748921172096916, guid: fb351ede86e68c1ea964cda2d37cee33, type: 3}
+  impactVfxLifetime: 3.5

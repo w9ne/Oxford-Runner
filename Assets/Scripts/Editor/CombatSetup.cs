@@ -34,6 +34,7 @@ public static class CombatSetup
         {
             var so = new SerializedObject(root.GetComponent<Enemy>());
             so.FindProperty("attackSpell").objectReferenceValue = boltSpell;
+            so.FindProperty("maxHealth").floatValue = 50f;   // common enemy base HP
             var face = root.transform.Find("Face");
             if (face != null) so.FindProperty("telegraphRenderer").objectReferenceValue = face.GetComponent<Renderer>();
             so.ApplyModifiedPropertiesWithoutUndo();
@@ -47,10 +48,9 @@ public static class CombatSetup
             var hud = GetOrAdd<PlayerHUD>(root);
 
             var cam = root.GetComponentInChildren<Camera>();
-            Transform castPoint = cam != null ? cam.transform.Find("CastPoint") : null;
             var pso = new SerializedObject(parry);
             pso.FindProperty("view").objectReferenceValue = cam != null ? cam.transform : null;
-            pso.FindProperty("reflectOrigin").objectReferenceValue = castPoint;
+            pso.FindProperty("speedMultiplier").floatValue = 2f;   // reflected shots fly 2x faster
             pso.ApplyModifiedPropertiesWithoutUndo();
 
             var hso = new SerializedObject(hud);
@@ -61,6 +61,7 @@ public static class CombatSetup
 
         AssetDatabase.SaveAssets();
         Debug.Log("[CombatSetup] Enemy bolt created, enemies armed, player has health + parry + HUD.");
+        VfxSetup.Apply();
     }
 
     private static GameObject CreateBoltPrefab()
@@ -136,9 +137,9 @@ public static class CombatSetup
         spell.displayName = "Enemy Bolt";
         spell.uiColor = BoltColor;
         spell.projectilePrefab = boltPrefab.GetComponent<SpellProjectile>();
-        spell.speed = 16f;            // slow enough to read and parry
+        spell.speed = 20f;            // readable but snappy
         spell.lifetime = 5f;
-        spell.hitRadius = 0.3f;
+        spell.hitRadius = 0.2f;       // matches the visible core, so it hits when it looks like it hits
         spell.damage = 10f;
         spell.impactRadius = 1.2f;
         spell.parryable = true;

@@ -1504,7 +1504,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TutorialStep
   order: 10
   title: Parry
-  instructions: 'RIGHT CLICK just before a bolt hits to parry it back where you aim.
+  instructions: 'RIGHT CLICK raises a barrier for 0.3s. Bolts that hit it fly back where you aim.
 
     Only
     parried bolts hurt the sentinel. Missing = 2s cooldown.'

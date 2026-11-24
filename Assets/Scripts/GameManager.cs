@@ -17,7 +17,7 @@ public class GameManager : MonoBehaviour
     public class WaveData
     {
         public int enemyCount = 3;
-        public float enemyHealth = 30f;
+        public float enemyHealth = 50f;
         public float enemySpeed = 3.5f;
         [Tooltip("Seconds between enemy spell casts (used once enemy attacks exist).")]
         public float enemyFireInterval = 3f;
@@ -173,6 +173,10 @@ public class GameManager : MonoBehaviour
         alive.Remove(enemy);
     }
 
+    /// <summary>Overwrites the stage list in this scene with the defaults below (used after retuning them).</summary>
+    [ContextMenu("Reset Stages To Defaults")]
+    public void ResetStagesToDefaults() => stages = DefaultStages();
+
     private static List<StageData> DefaultStages()
     {
         // Difficulty ramps through count, health and attack frequency.
@@ -180,21 +184,21 @@ public class GameManager : MonoBehaviour
         {
             new StageData { name = "Stage 1", waves = new List<WaveData>
             {
-                new WaveData { enemyCount = 3, enemyHealth = 30, enemySpeed = 3.5f, enemyFireInterval = 3.0f, spawnInterval = 1.2f },
-                new WaveData { enemyCount = 4, enemyHealth = 30, enemySpeed = 3.5f, enemyFireInterval = 2.8f, spawnInterval = 1.0f },
-                new WaveData { enemyCount = 5, enemyHealth = 35, enemySpeed = 3.8f, enemyFireInterval = 2.6f, spawnInterval = 1.0f },
+                new WaveData { enemyCount = 3, enemyHealth = 50, enemySpeed = 3.5f, enemyFireInterval = 3.0f, spawnInterval = 1.2f },
+                new WaveData { enemyCount = 4, enemyHealth = 50, enemySpeed = 3.5f, enemyFireInterval = 2.8f, spawnInterval = 1.0f },
+                new WaveData { enemyCount = 5, enemyHealth = 55, enemySpeed = 3.8f, enemyFireInterval = 2.6f, spawnInterval = 1.0f },
             }},
             new StageData { name = "Stage 2", waves = new List<WaveData>
             {
-                new WaveData { enemyCount = 5, enemyHealth = 45, enemySpeed = 4.0f, enemyFireInterval = 2.4f, spawnInterval = 0.9f },
-                new WaveData { enemyCount = 6, enemyHealth = 45, enemySpeed = 4.0f, enemyFireInterval = 2.2f, spawnInterval = 0.8f },
-                new WaveData { enemyCount = 8, enemyHealth = 50, enemySpeed = 4.2f, enemyFireInterval = 2.0f, spawnInterval = 0.8f },
+                new WaveData { enemyCount = 5, enemyHealth = 60, enemySpeed = 4.0f, enemyFireInterval = 2.4f, spawnInterval = 0.9f },
+                new WaveData { enemyCount = 6, enemyHealth = 65, enemySpeed = 4.0f, enemyFireInterval = 2.2f, spawnInterval = 0.8f },
+                new WaveData { enemyCount = 8, enemyHealth = 70, enemySpeed = 4.2f, enemyFireInterval = 2.0f, spawnInterval = 0.8f },
             }},
             new StageData { name = "Stage 3", waves = new List<WaveData>
             {
-                new WaveData { enemyCount = 7, enemyHealth = 60, enemySpeed = 4.5f, enemyFireInterval = 1.8f, spawnInterval = 0.7f },
-                new WaveData { enemyCount = 9, enemyHealth = 60, enemySpeed = 4.5f, enemyFireInterval = 1.6f, spawnInterval = 0.6f },
-                new WaveData { enemyCount = 11, enemyHealth = 70, enemySpeed = 4.8f, enemyFireInterval = 1.5f, spawnInterval = 0.6f },
+                new WaveData { enemyCount = 7, enemyHealth = 80, enemySpeed = 4.5f, enemyFireInterval = 1.8f, spawnInterval = 0.7f },
+                new WaveData { enemyCount = 9, enemyHealth = 85, enemySpeed = 4.5f, enemyFireInterval = 1.6f, spawnInterval = 0.6f },
+                new WaveData { enemyCount = 11, enemyHealth = 95, enemySpeed = 4.8f, enemyFireInterval = 1.5f, spawnInterval = 0.6f },
             }},
         };
     }
@@ -202,7 +206,7 @@ public class GameManager : MonoBehaviour
     private void OnGUI()
     {
         if (!showDebugOverlay) return;
-        var style = new GUIStyle(GUI.skin.label) { fontSize = 18 };
+        var style = new GUIStyle(GUI.skin.label) { fontSize = 18, font = MenuUI.Font };
         style.normal.textColor = Color.white;
 
         string stageName = StageIndex < stages.Count ? stages[StageIndex].name : "";

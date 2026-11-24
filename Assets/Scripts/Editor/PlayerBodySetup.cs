@@ -6,13 +6,17 @@ using UnityEngine;
 
 /// <summary>
 /// Menu: Oxford Runner > Setup Player Body
-/// Builds the PlayerBody animator controller and attaches a full-body model holding a spellbook
-/// to the "Player" in the open scene. Safe to re-run: it replaces the previous body.
+/// Builds the PlayerBody animator controller and gives the Player prefab its full-body model
+/// (Standout7 "LOFRE Player 01", low poly) with a spellbook floating above the right hand.
+/// Safe to re-run: it replaces the previous body.
 /// </summary>
 public static class PlayerBodySetup
 {
     private const string KI = "Assets/Kevin Iglesias/Human Animations/";
-    private const string ModelPrefab = KI + "Unity Demo Scenes/Human Spellcasting Animations/Prefabs/HumanM_Dummy_Purple.prefab";
+    private const string ModelPrefab = "Assets/Standout7/LOFRE_Player_01/Prefabs/Player_01.prefab";
+    private const string ModelMaterial = "Assets/Standout7/LOFRE_Player_01/Materials/M_Lowpo.mat";
+    private const string ModelTexture = "Assets/Standout7/LOFRE_Player_01/Texture/T_Lowpo.png";
+    private const string PlayerPrefab = "Assets/Prefabs/Player.prefab";
     private const string BookPrefab = "Assets/Blue Olive Studio/Magic Spellbook & Book Stand \u2013 Wizard Props/Built-In/Magic Book-Opened 1.prefab";
     private const string RightArmMask = KI + "Models/Avatar Masks/Arms/Human Arm Right Mask.mask";
     private const string Run = KI + "Animations/Male/Movement/Run/HumanM@Run01_";
@@ -22,70 +26,85 @@ public static class PlayerBodySetup
     private const string ControllerPath = "Assets/Animations/PlayerBody.controller";
     private const string BodyName = "PlayerBody";
 
-    // Open book placement on the right hand bone (tuned in Play mode so the pages face the camera).
-    private static readonly Vector3 BookLocalPos = new Vector3(0.1623f, -0.0722f, 0.0763f);
-    private static readonly Quaternion BookLocalRot = new Quaternion(-0.50635f, 0.48511f, -0.54101f, 0.46431f);
-    private static readonly Vector3 BookLocalScale = Vector3.one * 0.3f;
+    private static readonly Vector3 BookLocalScale = Vector3.one * 0.2f;
+    private const float BodyScale = 1.3f;   // Player_01 is short (~1.45 m); scale so the shoulders sit under the camera
 
     // Spells spawn in front of the left palm, which thrusts out here (camera space).
-    private static readonly Vector3 CastPointLocalPos = new Vector3(-0.22f, -0.12f, 0.46f);
+    private static readonly Vector3 CastPointLocalPos = new Vector3(-0.24f, -0.14f, 0.6f);
 
     [MenuItem("Oxford Runner/Setup Player Body")]
     public static void Setup()
     {
-        var player = Object.FindFirstObjectByType<FirstPersonController>();
-        if (player == null)
+        FixModelMaterial();
+        var root = PrefabUtility.LoadPrefabContents(PlayerPrefab);
+        try
         {
-            EditorUtility.DisplayDialog("Setup Player Body", "No FirstPersonController found in the open scene.", "OK");
-            return;
+            if (SetupOn(root)) PrefabUtility.SaveAsPrefabAsset(root, PlayerPrefab);
         }
+        finally { PrefabUtility.UnloadPrefabContents(root); }
+        Debug.Log("[PlayerBodySetup] Player prefab now uses Player_01 with a floating spellbook.");
+    }
 
-        // Reuse the controller if it exists: deleting/recreating it while the Animator window is open
-        // throws a (harmless) editor NullReferenceException. Use "Rebuild Player Animator" to force it.
+    /// <summary>The pack ships a URP material (pink in the built-in pipeline): switch it to Standard.</summary>
+    private static void FixModelMaterial()
+    {
+        var mat = AssetDatabase.LoadAssetAtPath<Material>(ModelMaterial);
+        if (mat == null) return;
+        if (mat.shader == null || mat.shader.name != "Standard") mat.shader = Shader.Find("Standard");
+        mat.mainTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(ModelTexture);
+        mat.color = Color.white;
+        mat.SetFloat("_Glossiness", 0.15f);
+        mat.SetFloat("_Metallic", 0f);
+        EditorUtility.SetDirty(mat);
+    }
+
+    private static bool SetupOn(GameObject root)
+    {
+        var player = root.GetComponent<FirstPersonController>();
+        if (player == null) { Debug.LogError("[PlayerBodySetup] Player prefab has no FirstPersonController."); return false; }
+
         var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
         if (controller == null) controller = BuildController();
 
-        // Replace any previous body.
         var old = player.transform.Find(BodyName);
-        if (old != null) Undo.DestroyObjectImmediate(old.gameObject);
+        if (old != null) Object.DestroyImmediate(old.gameObject);
 
         var modelAsset = AssetDatabase.LoadAssetAtPath<GameObject>(ModelPrefab);
-        var body = (GameObject)PrefabUtility.InstantiatePrefab(modelAsset, player.gameObject.scene);
+        var body = (GameObject)PrefabUtility.InstantiatePrefab(modelAsset, player.transform);
         PrefabUtility.UnpackPrefabInstance(body, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
-        Undo.RegisterCreatedObjectUndo(body, "Setup Player Body");
         body.name = BodyName;
-        body.transform.SetParent(player.transform, false);
-        body.transform.localPosition = new Vector3(0f, -1f, -0.05f);
+        body.transform.localPosition = new Vector3(0f, -1.05f, -0.15f);
         body.transform.localRotation = Quaternion.identity;
+        body.transform.localScale = Vector3.one * BodyScale;
 
-        // Strip any demo scripts / colliders that came with the model.
         foreach (var mb in body.GetComponentsInChildren<MonoBehaviour>(true)) Object.DestroyImmediate(mb);
         foreach (var col in body.GetComponentsInChildren<Collider>(true)) Object.DestroyImmediate(col);
+        // Head, hair, brows, scarf and shoulder guards only cast shadows: they sit right under the
+        // camera and would fill the view; your shadow still shows them.
+        foreach (var smr in body.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+            if (smr.name == "Head" || smr.name == "Hair" || smr.name == "Eyebrow" || smr.name == "Scarf" || smr.name == "Shoulder Guard")
+                smr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly;
 
         var animator = body.GetComponent<Animator>();
         if (animator == null || !animator.isHuman)
         {
             Debug.LogError("[PlayerBodySetup] Model has no humanoid Animator; aborting.");
             Object.DestroyImmediate(body);
-            return;
+            return false;
         }
         animator.runtimeAnimatorController = controller;
         animator.applyRootMotion = false;
         animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
 
-        // Book in the right hand.
-        Transform hand = animator.GetBoneTransform(HumanBodyBones.RightHand);
+        // Book floating above the right hand (PlayerBody moves it every frame).
         var bookAsset = AssetDatabase.LoadAssetAtPath<GameObject>(BookPrefab);
         if (bookAsset == null)
         {
             Debug.LogError($"[PlayerBodySetup] Book prefab not found at {BookPrefab}");
-            return;
+            return false;
         }
-        var book = (GameObject)PrefabUtility.InstantiatePrefab(bookAsset, player.gameObject.scene);
+        var book = (GameObject)PrefabUtility.InstantiatePrefab(bookAsset, body.transform);
         book.name = "Spellbook";
-        book.transform.SetParent(hand, false);
-        book.transform.localPosition = BookLocalPos;
-        book.transform.localRotation = BookLocalRot;
         book.transform.localScale = BookLocalScale;
         foreach (var col in book.GetComponentsInChildren<Collider>(true)) Object.DestroyImmediate(col);
 
@@ -99,7 +118,6 @@ public static class PlayerBodySetup
         }
         if (castPoint != null)
         {
-            Undo.RecordObject(castPoint, "Cast point");
             castPoint.localPosition = CastPointLocalPos;
             castPoint.localRotation = Quaternion.identity;
         }
@@ -123,15 +141,8 @@ public static class PlayerBodySetup
         }
 
         // The book is only ~0.4m from the eye; the default near plane (0.3) would clip it.
-        if (camera != null)
-        {
-            Undo.RecordObject(camera, "Camera near clip");
-            camera.nearClipPlane = 0.03f;
-        }
-
-        EditorSceneManager.MarkSceneDirty(player.gameObject.scene);
-        Selection.activeGameObject = body;
-        Debug.Log("[PlayerBodySetup] Player body + spellbook set up. Tweak 'Hand Offset' / 'Hand Rotation Offset' on PlayerBody in Play mode.");
+        if (camera != null) camera.nearClipPlane = 0.03f;
+        return true;
     }
 
     [MenuItem("Oxford Runner/Rebuild Player Animator")]
