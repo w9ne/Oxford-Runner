@@ -20,6 +20,8 @@ public class MainMenu : MonoBehaviour
 
         mainPanel = MenuUI.Rect(canvas, "Main", Vector2.zero, new Vector2(800f, 900f));
         MenuUI.Label(mainPanel, "OXFORD RUNNER", 96, new Vector2(0f, 270f), new Vector2(1200f, 120f), Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
+        MenuUI.Label(mainPanel, $"BEST   Level 1  {Best(GameFlow.Level1Scene)}     Level 2  {Best(GameFlow.Level2Scene)}     Level 3  {Best(GameFlow.Level3Scene)}",
+                     26, new Vector2(0f, 180f), new Vector2(1200f, 40f), MenuUI.Accent);
         MenuUI.Button(mainPanel, "Play", new Vector2(0f, 60f), GameFlow.Play);
         MenuUI.Button(mainPanel, "Tutorial", new Vector2(0f, -30f), GameFlow.PlayTutorialOnly);
         MenuUI.Button(mainPanel, "Settings", new Vector2(0f, -120f), () => Show(settings: true));
@@ -39,4 +41,6 @@ public class MainMenu : MonoBehaviour
     {
         if (settingsPanel.gameObject.activeSelf && Input.GetKeyDown(KeyCode.Escape)) Show(settings: false);
     }
+
+    private static string Best(string scene) => PlayerPrefs.GetInt(StyleMeter.BestKey(scene), 0).ToString("N0");
 }

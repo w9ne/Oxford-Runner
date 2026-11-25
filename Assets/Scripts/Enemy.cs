@@ -478,6 +478,9 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
     {
         if (IsDead || info.source == Faction.Enemy) return;
         if (onlyReflectedDamage && !info.reflected) { hitFlash = 0.3f; return; }   // shrug it off
+        // Style: a combo is a hit on someone already frozen / stunned by another spell; an airshot hits someone off the ground.
+        bool combo = (IsFrozen || IsStunned) && info.freezeDuration <= 0f && info.stunDuration <= 0f;
+        bool airborne = IsAirborne();
         if (info.slowAmount > 0f)
         {
             slowFactor = Mathf.Min(Time.time < slowUntil ? slowFactor : 1f, 1f - Mathf.Clamp01(info.slowAmount));
@@ -497,7 +500,12 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
             windupStart = -1f;
             dashUntil = 0f;
         }
+        if (StyleMeter.Instance != null) StyleMeter.Instance.EnemyHit(IsDead, info.reflected, combo, airborne);
     }
+
+    // Hovering / turret enemies are kinematic and never count. The ray starts inside our own collider, so it skips it.
+    private bool IsAirborne() =>
+        !rb.isKinematic && !Physics.Raycast(new Vector3(capsule.bounds.center.x, capsule.bounds.min.y + 0.1f, capsule.bounds.center.z), Vector3.down, 0.6f, ~0, QueryTriggerInteraction.Ignore);
 
     public void Freeze(float duration)
     {
