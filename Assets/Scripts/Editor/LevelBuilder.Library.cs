@@ -51,16 +51,19 @@ public static partial class LevelBuilder
         Chandeliers(a1);
         ScatteredBooks(a1);
 
+        // Floating mages low (6.5 m: higher up they hugged the 12 m ceiling) over the middle of the hall, not the corners; waves spawning around the rotunda in the
+        // middle: nothing comes from the far end or out of the side stacks, where walkers got stuck.
         var garrison = new List<Enemy>
         {
-            FloatingMage(a1, new Vector3(-22f, 9.5f, 30f), wander: 7f),
-            FloatingMage(a1, new Vector3(22f, 9.5f, 38f), wander: 7f),
-            FloatingMage(a1, new Vector3(-22f, 9.5f, 98f), wander: 7f),
-            FloatingMage(a1, new Vector3(22f, 9.5f, 90f), wander: 7f),
+            FloatingMage(a1, new Vector3(-7f, 6.5f, 46f), wander: 5f),
+            FloatingMage(a1, new Vector3(7f, 6.5f, 50f), wander: 5f),
+            FloatingMage(a1, new Vector3(-7f, 6.5f, 82f), wander: 5f),
+            FloatingMage(a1, new Vector3(7f, 6.5f, 78f), wander: 5f),
         };
         Encounter("Ground Floor", a1, new Vector3(0f, 0f, 66f), new Vector2(LibHalfW * 2f, 108f), garrison,
-                  new[] { new Vector3(-21f, 0f, 64f), new Vector3(21f, 0f, 64f), new Vector3(-29f, 0f, 110f), new Vector3(29f, 0f, 110f), new Vector3(0f, 0f, 114f) },
-                  Wave(5, 60f, 4.2f, 2.4f), Wave(6, 65f, 4.2f, 2.2f));
+                  new[] { new Vector3(-18f, 0f, 62f), new Vector3(18f, 0f, 66f), new Vector3(-6f, 0f, 52f), new Vector3(6f, 0f, 52f),
+                          new Vector3(-6f, 0f, 76f), new Vector3(6f, 0f, 76f) },
+                  Wave(8, 60f, 4.2f, 2.4f), Wave(8, 65f, 4.2f, 2.2f));   // 16: still 2 commanders (auto)
 
         // Area 2: the staircase comes down when the ground floor is cleared; a hatch shuts over it once you're up.
         var a2 = Group("B_UpperHall");
@@ -461,6 +464,10 @@ public static partial class LevelBuilder
             seg.transform.SetPositionAndRotation(basePoint + dir * rMid + Vector3.up * y,
                                                  Quaternion.Euler(0f, a + 90f, 0f) * Quaternion.Euler(-slope, 0f, 0f));
             seg.AddComponent<BoxCollider>().size = new Vector3(rOut - rIn, 0.2f, pieceLen);   // x radial, z along the turn
+            // Handrail along the tops of the iron posts.
+            var rail = Box(g, "Handrail", basePoint + dir * (rOut - 0.1f) + Vector3.up * (y + 1.05f), new Vector3(0.07f, 0.07f, pieceLen), ironMat);
+            rail.transform.rotation = seg.transform.rotation;
+            Object.DestroyImmediate(rail.GetComponent<Collider>());
             // Invisible railing on the outer edge, so you can't slide off the side (from the 3rd step up, so you
             // can still step on from the floor).
             if (k < sub * 3) continue;

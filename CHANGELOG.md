@@ -547,3 +547,65 @@ adds health + parry + HUD to the Player prefab.
   hands/book no longer trail the view by a frame. Judder test (4 Hz physics): 0 frozen camera frames of 411.
 - Fewer per-frame strings: LevelManager HUD text and StyleMeter feed lines only rebuilt when they change.
 - Movement smoke test: jump peak 1.31 m, dash 5 m, slide on/off, W/D directions correct.
+
+## 2026-11-25 — bigger Upper Hall, plain enemy bolts, beam-in spawns
+- Level 3 Upper Hall ~24 m longer: the collapse moved from z 50 to z 26 (HallZ0), balconies/walls/torches follow,
+  extra chandelier at the front. Removed pocket-makers (long front bookcase, bookcase toppled by the grand stairs,
+  two standing at the back), wall-jump shafts shortened (x 15..19.8), invisible fill under both leaning-bookcase
+  ramps (enemies wedged in the low gap). New spawns: front floor (+-14, 36), front balconies for mages.
+  Trigger now covers the whole hall except a box around the stair hole (`Encounter.triggerIgnore`).
+  Stuck test (30 s, player moving between 5 spots): 9% -> 4% of samples; the rest is mostly enemies under a player
+  standing on the balcony.
+- Enemy bolts: just the purple orb (0.4 m = hit size) + trail. The copied fireball particles and the Hovl lightning
+  aura were bigger than the hit sphere, so shots looked like they hit before touching you. CombatSetup/VfxSetup updated.
+- Beam-in spawns (`Core/BeamIn.cs`, `Resources/BeamIn.prefab` = Hovl Environment/Teleport): a column of light
+  streaks + a swelling blue light, then the enemy flickers into view (0.9 s + 0.4 s, 0-0.4 s random stagger).
+  Used for wave spawns and garrisons waking. Enemies are inactive while beaming (can't act or be hit) but count as alive.
+- Level 3 rebuilt.
+
+## 2026-11-25 — landing access, railings, HUD redesign, death screen, green parry
+- Level 3 grand staircase (patched in place, Level 3 now has a user hand edit: a moved debris rug): back flight
+  (16 m wide) down from the landing; spilled-book slopes either side of the front flight (x 5..12, no edges);
+  railings are handrails on balusters (invisible guard wall only on the high side flights); approach points at the
+  feet of the ways up. Right balcony ramp moved to z 46 (it boxed in the book pile). Fallen chandelier to the front.
+  Spiral staircase: iron handrail on the post tops. Under-ramp fill is now floor-bounded slices (the old 8 m block
+  poked into the ground floor as an invisible wall).
+- Enemy AI: melee enemies whose target is up on a ledge and who are blocked walk to the best ApproachPoint
+  (`Core/ApproachPoint.cs`) first. Landing test: stuck 11% -> 5-9% (skeletons ~8%), most of the rest ranged strafing.
+- HUD: big health bar (green -> yellow -> red, 25 HP ticks, pulses when low, large number + "/ 100"); dash meter
+  right of it (`FirstPersonController.DashCharge`); parry meter + "RMB" under the crosshair removed; crosshair is a
+  ring; spell hotbar smaller and bottom right (no overlap).
+- Parry cue: press-now / barrier-up turns green with a big "!" (was cyan "PARRY"); parry flash + "PARRY!" pop green.
+- Death (campaign levels, `UI/DeathScreen.cs`): enemies freeze (`GameFlow.PlayerDead`), enemy shots fizzle, controls
+  off, camera jolts + shakes, falls backwards to the floor looking at the ceiling, then YOU DIED with RESTART LEVEL
+  (full health) / QUIT TO MENU. Tutorial keeps checkpoint respawns.
+- Hotbar spell effects (`UI/HotbarFx.cs`, IMGUI, inside the slot only): fireball flames, frost edges + corner
+  shards + twinkles, crackling lightning, pulsing purple arcane glow, red nova glow with a shockwave ring. Gentle while
+  the spell is selected, flares for 0.9 s after a cast. Kind follows the spell's cast gesture. Ring texture shared
+  with the crosshair (`CrosshairRing`).
+- HUD ability boxes (audit fix 2): two square boxes right of the health bar replace the dash bar. Dash (double
+  chevron + speed lines) and parry (shield) each fill bottom to top while recharging (`Image.Type.Filled`); parry box
+  flashes green while the barrier is up and refills over the 2 s missed-parry cooldown. Icons drawn in code
+  (`UI/HudIcons.cs`). Removed unused `PlayerHUD.ReadyColor`.
+- SSS targets lowered by 1,500: Level 1 6,500 / Level 2 13,500 / Level 3 18,500 (`LevelResults.SssScore`).
+- Level 3 landing is now a round dais (`LevelBuilder.Mound`, one generated mesh + MeshCollider): flat top r 9.2 m at
+  the landing height, 10 deg slope down to the hall floor all round (r ~20.5 m). Replaces the front/back flights,
+  book slopes and floor approach points; the two side flights to the balconies stay (approach points at their feet).
+  Debris cleared from the dais footprint. Landing test: skeletons stuck 8-15% -> 3%, up on the dais with the player
+  26/70 samples (best so far). Patched in place in Level3.unity.
+- Level 3 enemy counts +5 per area, commanders unchanged (auto = 2): Ground Floor waves 8+8 (16), Upper Hall 12+15 (27).
+  Ground Floor waves spawn from 6 points around the rotunda in the middle (x +-6/+-18, z 52-76), none at the far end
+  or in the side stacks; its 4 floating mages moved from the corners to over the middle, and down from 9.5 m to
+  6.5 m (they hugged the ceiling). Area 1 stuck test: 2% (skeletons 3%). Patched in place in Level3.unity.
+- Level 3 Upper Hall: giant torches by the metal door no longer play the Hovl explosion burst when they light (builder +
+  scene). Upper Hall skeleton share 0.3 (`Encounter.skeletonShare`, -1 = level default): 27 = 8 skeletons, 17 mages,
+  2 commanders (was 13 skeletons).
+- Style kill modifiers (StyleMeter): kills show green; killing while wall-running ("WALLRUN KILL"), sliding
+  ("SLIDE KILL") or in the air ("AIR KILL"), and multikills (2 within 1.2 s: yellow "MULTIKILL"; 3+: rainbow
+  "MULTIKILL") each multiply the kill's points by 1.5 (stacking).
+- Arcane Nova: radius 7 -> 10 m, damage 58.5 -> 85, knockback 30 -> 38, effect scaled to the radius; camera shake
+  (`Core/CameraShake.cs`, applied in FirstPersonController) and a big red flash light (`FadingLight`) on the blast.
+- Audit fixes 1-6: death removes every shot in the air (yours could kill the last frozen enemy and open the portal);
+  Level 3 added to the builder's hand-edit overwrite guard; `StyleMeter.KillMultiplier` + `ApproachPoint.Best(list)`
+  pulled out and tested (ScoringAndRoutingTests); hotbar shrinks to stay clear of the health bar + ability boxes on
+  narrow (4:3) screens (`PlayerHUD.LeftWidth`); `Railing3D` always adds its guard wall (the `solid` option was always on).

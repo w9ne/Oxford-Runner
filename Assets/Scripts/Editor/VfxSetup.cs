@@ -34,7 +34,7 @@ public static class VfxSetup
         Dress(ProjDir + "Fireball_Projectile.prefab", "Assets/Kevin Iglesias/Human Animations/Unity Demo Scenes/Human Spellcasting Animations/Prefabs/Spells/Human_Spell_Fireball_Large.prefab", 0.9f);
         Dress(ProjDir + "FrostLance_Projectile.prefab", Hovl + "Sparks/Sparks flashing blue.prefab", 1f);
         Dress(ProjDir + "ArcaneMissile_Projectile.prefab", Hovl + "Sparks/Sparks flashing pink.prefab", 0.8f);
-        Dress(ProjDir + "EnemyBolt_Projectile.prefab", Hovl + "Character auras/Lightning aura.prefab", 0.35f);
+        // Enemy bolts stay a plain orb + trail (CombatSetup): a particle effect larger than the hit sphere looked out of sync.
 
         // --- One-shot impacts.
         var fireHit = OneShot(Hovl + "Hits and explosions/Explosion.prefab", "Fireball_Hit", 1.6f, 1f,

@@ -21,6 +21,7 @@ public class NovaSpell : Spell
     public float vfxScale = 1f;
     [Tooltip("When the effect's own burst happens (seconds into it at normal speed).")]
     public float vfxChargeTime = 1f;
+    public Color flashColor = new Color(1f, 0.15f, 0.08f);
 
     public override void BeginCast(SpellCaster caster)
     {
@@ -74,5 +75,36 @@ public class NovaSpell : Spell
         }
 
         if (vfx != null && castTime <= 0f) SpawnVfx(owner, false);
+
+        // Weight: the ground shakes and a red flash lights the whole blast.
+        CameraShake.Shake(3.5f, 0.55f);
+        var flash = new GameObject("NovaFlash").AddComponent<FadingLight>();
+        flash.transform.position = center + Vector3.up * 1.5f;
+        flash.Begin(flashColor, radius * 1.8f, 12f, 0.6f);
+    }
+}
+
+/// <summary>A point light that starts bright and fades out, then removes itself (Arcane Nova's red flash).</summary>
+public class FadingLight : MonoBehaviour
+{
+    private Light lit;
+    private float peak, life, born;
+
+    public void Begin(Color color, float range, float intensity, float seconds)
+    {
+        lit = gameObject.AddComponent<Light>();
+        lit.type = LightType.Point;
+        lit.color = color;
+        lit.range = range;
+        lit.intensity = peak = intensity;
+        life = seconds;
+        born = Time.time;
+    }
+
+    private void Update()
+    {
+        float t = (Time.time - born) / life;
+        if (t >= 1f) { Destroy(gameObject); return; }
+        lit.intensity = peak * (1f - t) * (1f - t);
     }
 }

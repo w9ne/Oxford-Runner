@@ -18,11 +18,12 @@ MonoBehaviour:
   gesture: 4
   castTime: 0.3
   castMoveMultiplier: 0.25
-  radius: 7
-  damage: 58.5
-  knockback: 30
+  radius: 10
+  damage: 85
+  knockback: 38
   destroysProjectiles: 1
   vfx: {fileID: 4288560566755803802, guid: 30fe5aa959ddf247db6ba7372803a7ea, type: 3}
   vfxLifetime: 2.5
-  vfxScale: 2
+  vfxScale: 2.857143
   vfxChargeTime: 1
+  flashColor: {r: 1, g: 0.15, b: 0.08, a: 1}

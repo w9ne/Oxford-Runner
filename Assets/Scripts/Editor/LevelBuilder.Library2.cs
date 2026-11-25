@@ -6,14 +6,14 @@ using UnityEngine;
 ///   You come up the spiral staircase at the rotunda; a hatch slides shut over it behind you.
 ///   Two storeys: the hall floor (y 13) and a U-shaped balcony (y 19) along both side walls and the back wall.
 ///   A grand staircase in the middle (central flight to a landing, then a flight to each side balcony).
-///   The front of the hall (z &lt; 50) has caved in: a rubble pile up to the roof closes it off.
+///   The front of the hall (z &lt; 26) has caved in: a rubble pile up to the roof closes it off.
 ///   A giant metal door in the back wall at balcony level leads to area 3 (boss room; for now a corridor with
 ///   the exit portal). Damage: toppled / leaning / broken bookcases, a fallen chandelier, overturned tables,
 ///   broken balcony railings, rubble, soot marks, books everywhere.
 /// </summary>
 public static partial class LevelBuilder
 {
-    private const float BalconyY = 19f, DoorTop = 27f, HallZ0 = 50f, BalconyIn = 20f, BackBalconyZ = 106f;
+    private const float BalconyY = 19f, DoorTop = 27f, HallZ0 = 26f, BalconyIn = 20f, BackBalconyZ = 106f;
     private static Material doorMetalMat, sootMat;
 
     /// <summary>Builds area 2 and area 3 (the door corridor). Returns the exit portal.</summary>
@@ -51,13 +51,16 @@ public static partial class LevelBuilder
                              // Hall floor in front of the grand staircase, and its landing. Nothing behind it: walkers spawned
                              // back there walked straight at you into the staircase and got stuck.
                              new[] { new Vector3(-24f, FloorTop, 58f), new Vector3(24f, FloorTop, 58f), new Vector3(-24f, FloorTop, 84f), new Vector3(24f, FloorTop, 84f),
-                                     new Vector3(0f, 15f, 92f) },
-                             Wave(10, 70f, 4.4f, 2.2f), Wave(12, 75f, 4.6f, 2f));   // 22 at once: 2 commanders (auto), ~10 mages, ~10 skeletons
+                                     new Vector3(0f, 15f, 92f), new Vector3(-14f, FloorTop, 36f), new Vector3(14f, FloorTop, 36f) },
+                             Wave(12, 70f, 4.4f, 2.2f), Wave(15, 75f, 4.6f, 2f));   // 27 at once: 2 commanders (auto), ~12-13 mages, ~12 skeletons
         hall.mageSpawnPoints = SpawnPoints(a2, "MageSpawnPoints", new Vector3(0f, FloorTop, 95f),   // balconies: mages only
-                                           new[] { new Vector3(-26f, BalconyY, 100f), new Vector3(26f, BalconyY, 98f), new Vector3(0f, BalconyY, 112f) });
-        hall.garrisonWakesOnEnter = true;   // the floating mages don't shoot down the stair hole while you climb
-        // Starts once you're off the stairs (z > 70), so the hatch never shuts under you.
-        hall.triggerArea = new Bounds(new Vector3(0f, FloorTop + 7f, 95f), new Vector3(LibHalfW * 2f, 14f, 50f));
+                                           new[] { new Vector3(-26f, BalconyY, 100f), new Vector3(26f, BalconyY, 98f), new Vector3(0f, BalconyY, 112f),
+                                                   new Vector3(-26f, BalconyY, 40f), new Vector3(26f, BalconyY, 46f) });
+        hall.garrisonWakesOnEnter = true;
+        hall.skeletonShare = 0.3f;   // fewer walkers up here (they get stuck more easily than mages)   // the floating mages don't shoot down the stair hole while you climb
+        // The whole hall, except around the stair hole: starts once you step off the stairs, so the hatch never shuts under you.
+        hall.triggerArea = new Bounds(new Vector3(0f, FloorTop + 7f, (HallZ0 + LibLength) * 0.5f), new Vector3(LibHalfW * 2f, 14f, LibLength - HallZ0));
+        hall.triggerIgnore = new Bounds(new Vector3(0f, FloorTop + 2f, RotundaZ + 1f), new Vector3(HoleHalf * 2f + 4f, 6f, HoleHalf * 2f + 6f));
         hall.gates.Add(stairs);
         hall.closeOnEnter.AddRange(hatch);
         var cp = new GameObject("Checkpoint_UpperHall").transform;
@@ -146,7 +149,7 @@ public static partial class LevelBuilder
             float x0 = s < 0 ? -LibHalfW : BalconyIn, x1 = s < 0 ? -BalconyIn : LibHalfW;
             Slab(g, "BalconyFloor", x0, x1, HallZ0, LibLength, BalconyY, thick, groundMat);
             // Pillars under the inner edge, beams under the floor.
-            for (float z = 56f; z < LibLength; z += 10f)
+            for (float z = HallZ0 + 6f; z < LibLength; z += 10f)
             {
                 Box(g, "Pillar", new Vector3(s * (BalconyIn + 0.5f), (FloorTop + BalconyY) * 0.5f, z), new Vector3(1f, BalconyY - FloorTop, 1f), stoneMat);
                 Box(g, "UnderBeam", new Vector3(s * (BalconyIn + LibHalfW) * 0.5f, BalconyY - thick - 0.3f, z), new Vector3(LibHalfW - BalconyIn, 0.6f, 0.5f), roofMat);
@@ -155,7 +158,7 @@ public static partial class LevelBuilder
             // Openings: stairs, the steps route, then per side the leaning-bookcase ramp, the wall-jump shaft and a broken bit.
             var gaps = new List<Vector2> { new Vector2(88.5f, 95.5f), new Vector2(97.5f, 102.5f) };
             gaps.AddRange(s < 0 ? new[] { new Vector2(58.5f, 63.5f), new Vector2(69.5f, 74.5f), new Vector2(110f, 112f) }
-                                : new[] { new Vector2(77f, 82f), new Vector2(63.5f, 68.5f), new Vector2(112f, 114f) });
+                                : new[] { new Vector2(43.5f, 48.5f), new Vector2(63.5f, 68.5f), new Vector2(112f, 114f) });
             Railing(g, new Vector3(s * (BalconyIn + 0.15f), BalconyY, HallZ0), new Vector3(s * (BalconyIn + 0.15f), BalconyY, LibLength), gaps, rng);
         }
         Slab(g, "BalconyFloor", -BalconyIn, BalconyIn, BackBalconyZ, LibLength, BalconyY, thick, groundMat);
@@ -166,7 +169,7 @@ public static partial class LevelBuilder
 
         // Bookcases that toppled against the balcony edge: lying on their backs, a walkable ramp up (one per side).
         LeaningCase(g, new Vector3(-8.5f, FloorTop, 61f), new Vector3(-BalconyIn, BalconyY, 61f), 3.4f);
-        LeaningCase(g, new Vector3(8.5f, FloorTop, 79.5f), new Vector3(BalconyIn, BalconyY, 79.5f), 3.4f);
+        LeaningCase(g, new Vector3(8.5f, FloorTop, 46f), new Vector3(BalconyIn, BalconyY, 46f), 3.4f);   // front: at z 79.5 it boxed in the book pile by the grand stairs
     }
 
     /// <summary>Wooden balustrade from a to b (along one axis). gaps = ranges (along that axis) with no railing.</summary>
@@ -216,29 +219,98 @@ public static partial class LevelBuilder
         var rot = Quaternion.LookRotation(d);
         Vector3 c = (bottom + top) * 0.5f + rot * Vector3.down * (thick * 0.5f);
         Box(g, "Books", c, new Vector3(width, thick, d.magnitude + 0.4f), shelfMat).transform.rotation = rot;
+        UnderFill(g, bottom, top, width);
         for (int s = -1; s <= 1; s += 2)
             Box(g, "Side", c + rot * new Vector3(s * (width * 0.5f + 0.08f), 0.1f, 0f), new Vector3(0.16f, thick + 0.2f, d.magnitude + 0.4f), shelfWoodMat).transform.rotation = rot;
     }
 
+    /// <summary>
+    /// Invisible blocks filling the space under a slope from bottom (on the floor) to top, so nobody walks into the
+    /// low gap underneath and wedges there. Upright slices, each just under the slope, never below the floor.
+    /// </summary>
+    private static void UnderFill(Transform parent, Vector3 bottom, Vector3 top, float width)
+    {
+        const int slices = 6;
+        Vector3 flat = top - bottom; flat.y = 0f;
+        var yawRot = Quaternion.LookRotation(flat);
+        for (int i = 1; i < slices; i++)   // the first slice would be ~0 tall
+        {
+            Vector3 a = Vector3.Lerp(bottom, top, i / (float)slices), b = Vector3.Lerp(bottom, top, (i + 1f) / slices);
+            float h = a.y - bottom.y - 0.15f;
+            var fill = new GameObject("UnderFill");
+            fill.transform.SetParent(parent, false);
+            fill.transform.SetPositionAndRotation(new Vector3((a.x + b.x) * 0.5f, bottom.y + h * 0.5f, (a.z + b.z) * 0.5f), yawRot);
+            fill.AddComponent<BoxCollider>().size = new Vector3(width + 0.3f, h, flat.magnitude / slices);
+        }
+    }
+
     // ------------------------------------------------------------------ grand staircase
+    private const float DaisZ = 92f, DaisTopRadius = 9.2f, DaisSlope = 10f;
+
     private static void GrandStaircase(Transform parent)
     {
         var g = Graybox.Group(parent, "GrandStaircase");
-        const float landY = 15f;   // 2 m: a double jump gets you onto it
-        Flight(g, new Vector3(0f, FloorTop, 76f), new Vector3(0f, landY, 88f), 10f, 12, FloorTop);
-        Box(g, "Landing", new Vector3(0f, (FloorTop + landY) * 0.5f, 92f), new Vector3(16f, landY - FloorTop, 8f), stoneMat);
-        Box(g, "LandingRug", new Vector3(0f, landY + 0.01f, 92f), new Vector3(12f, 0.02f, 6f), rugMat);
-        var stairRug = Box(g, "StairRug", new Vector3(0f, FloorTop + (landY - FloorTop) / 12f * 6.5f, 81.5f), new Vector3(4f, 0.02f, 12.4f), rugMat);   // over the step noses
-        stairRug.transform.rotation = Quaternion.Euler(-Mathf.Atan2(landY - FloorTop, 12f) * Mathf.Rad2Deg, 0f, 0f);
-        Object.DestroyImmediate(stairRug.GetComponent<Collider>());
+        const float landY = 15f;
+        // The landing is the flat top of a round dais whose sides slope gently (10 deg) down to the hall floor all the
+        // way round, so enemies chasing you up there can walk straight at you from any direction. (Stairs, book
+        // slopes and approach points kept leaving corners they ground into.)
+        Mound(g, "Dais", new Vector3(0f, FloorTop, DaisZ), DaisTopRadius, landY - FloorTop, DaisSlope, groundMat);
+        Box(g, "LandingRug", new Vector3(0f, landY + 0.01f, DaisZ), new Vector3(12f, 0.02f, 6f), rugMat);
         for (int s = -1; s <= 1; s += 2)
         {
-            // Solid down to the hall floor: open space under these flights trapped skeletons chasing you upstairs.
-            Flight(g, new Vector3(s * 8f, landY, 92f), new Vector3(s * BalconyIn, BalconyY, 92f), 6f, 12, FloorTop);
-            // Newel posts with lamps at the foot of the stairs.
-            Box(g, "Newel", new Vector3(s * 5.4f, FloorTop + 0.8f, 75.6f), new Vector3(0.6f, 1.6f, 0.6f), shelfWoodMat);
-            Prop(g, Olive + "Candles 1.prefab", new Vector3(s * 5.4f, FloorTop + 1.6f, 75.6f), 0f, 1.4f);
+            // Up from the dais to each side balcony. Solid down to the floor: no gap underneath to get stuck in.
+            Flight(g, new Vector3(s * 8f, landY, DaisZ), new Vector3(s * BalconyIn, BalconyY, DaisZ), 6f, 12, FloorTop);
+            // Feet of those flights, for melee enemies chasing you onto a balcony (see ApproachPoint).
+            var ap = new GameObject("ApproachPoint");
+            ap.transform.SetParent(g, false);
+            ap.transform.position = new Vector3(s * 7f, landY + 1.05f, DaisZ);
+            ap.AddComponent<ApproachPoint>();
         }
+    }
+
+    /// <summary>
+    /// A round mound: flat top (radius topRadius, height above the base point) and a smooth slope of slopeDeg down to
+    /// the floor all round. One generated mesh, used for both drawing and collision.
+    /// </summary>
+    private static GameObject Mound(Transform parent, string name, Vector3 basePoint, float topRadius, float height, float slopeDeg, Material mat)
+    {
+        const int seg = 72;
+        float baseRadius = topRadius + height / Mathf.Tan(slopeDeg * Mathf.Deg2Rad);
+        var verts = new List<Vector3>();
+        var tris = new List<int>();
+        verts.Add(new Vector3(0f, height, 0f));
+        for (int i = 0; i < seg; i++) verts.Add(Ring(i, topRadius, height));
+        for (int i = 0; i < seg; i++) { tris.Add(0); tris.Add(1 + i); tris.Add(1 + (i + 1) % seg); }   // clockwise seen from above: faces up
+        int b = verts.Count;
+        for (int i = 0; i <= seg; i++) { verts.Add(Ring(i, topRadius, height)); verts.Add(Ring(i, baseRadius, -0.05f)); }   // separate ring: sharp edge
+        for (int i = 0; i < seg; i++)
+        {
+            int t0 = b + 2 * i, b0 = t0 + 1, t1 = t0 + 2, b1 = t0 + 3;
+            tris.Add(t0); tris.Add(b0); tris.Add(t1);   // faces up and out
+            tris.Add(t1); tris.Add(b0); tris.Add(b1);
+        }
+        var uv = new Vector2[verts.Count];
+        for (int i = 0; i < verts.Count; i++) uv[i] = new Vector2(verts[i].x, verts[i].z) / 4f;   // floor tiling, 4 m
+        var mesh = new Mesh { name = name + "_Mesh" };
+        mesh.SetVertices(verts);
+        mesh.SetTriangles(tris, 0);
+        mesh.uv = uv;
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        var go = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer), typeof(MeshCollider));
+        go.transform.SetParent(parent, false);
+        go.transform.position = basePoint;
+        go.GetComponent<MeshFilter>().sharedMesh = mesh;
+        go.GetComponent<MeshRenderer>().sharedMaterial = mat;
+        go.GetComponent<MeshCollider>().sharedMesh = mesh;
+        go.isStatic = true;
+        return go;
+    }
+
+    private static Vector3 Ring(int i, float radius, float y)
+    {
+        float a = i * Mathf.PI * 2f / 72f;
+        return new Vector3(Mathf.Sin(a) * radius, y, Mathf.Cos(a) * radius);
     }
 
     /// <summary>
@@ -269,14 +341,30 @@ public static partial class LevelBuilder
         ramp.transform.SetParent(parent, false);
         ramp.transform.SetPositionAndRotation((p0 + p1) * 0.5f + rot * Vector3.down * 0.15f, rot);
         ramp.AddComponent<BoxCollider>().size = new Vector3(width, 0.3f, along.magnitude);
-        // Banisters along both sides.
+        // Railings along both sides: a handrail on posts standing on the steps, plus an invisible wall so it stops you.
         for (int s = -1; s <= 1; s += 2)
+            Railing3D(parent, p0, p1, Vector3.Cross(Vector3.up, dir) * (s * (width * 0.5f - 0.1f)), stepRun);
+    }
+
+    /// <summary>A handrail 1.1 m above the slope p0..p1 (offset sideways by side), on posts, plus a guard collider.</summary>
+    private static void Railing3D(Transform parent, Vector3 p0, Vector3 p1, Vector3 side, float postSpacing)
+    {
+        Vector3 along = p1 - p0;
+        var rot = Quaternion.LookRotation(along);
+        var rail = Box(parent, "Banister", (p0 + p1) * 0.5f + side + Vector3.up * 1.1f, new Vector3(0.18f, 0.15f, along.magnitude), shelfWoodMat);
+        rail.transform.rotation = rot;
+        Object.DestroyImmediate(rail.GetComponent<Collider>());
+        int posts = Mathf.Max(2, Mathf.RoundToInt(along.magnitude / Mathf.Max(0.5f, postSpacing * 2f)) + 1);
+        for (int i = 0; i < posts; i++)
         {
-            Vector3 side = Vector3.Cross(Vector3.up, dir) * (s * (width * 0.5f - 0.1f));
-            var rail = Box(parent, "Banister", (p0 + p1) * 0.5f + side + Vector3.up * 1.1f, new Vector3(0.18f, 0.15f, along.magnitude), shelfWoodMat);
-            rail.transform.rotation = rot;
-            Object.DestroyImmediate(rail.GetComponent<Collider>());
+            Vector3 foot = Vector3.Lerp(p0, p1, i / (posts - 1f)) + side;
+            var post = Box(parent, "Baluster", foot + Vector3.up * 0.55f, new Vector3(0.1f, 1.1f, 0.1f), shelfWoodMat);
+            Object.DestroyImmediate(post.GetComponent<Collider>());
         }
+        var guard = new GameObject("RailGuard");
+        guard.transform.SetParent(parent, false);
+        guard.transform.SetPositionAndRotation((p0 + p1) * 0.5f + side + Vector3.up * 0.7f, rot);
+        guard.AddComponent<BoxCollider>().size = new Vector3(0.15f, 1.4f, along.magnitude);
     }
 
     // ------------------------------------------------------------------ walls
@@ -312,7 +400,6 @@ public static partial class LevelBuilder
     {
         var g = Graybox.Group(parent, "HallStacks");
         float R(float a, float b) => a + (float)rng.NextDouble() * (b - a);
-        const float underBalcony = 4.6f;
 
         // Ways up to the balcony besides the stairs and the two leaning bookcases.
         WallJumpShaft(g, -1, 72f);
@@ -320,14 +407,11 @@ public static partial class LevelBuilder
         BrokenSteps(g, -1, 100f);
         BrokenSteps(g, 1, 100f);
 
-        // Front right: a long bookcase to wall-run; left: one leaning over. One toppled by the stairs for cover.
-        Bookcase(g, new Vector3(14f, FloorTop, 57f), 10f, 6f, 90f);
+        // Left: one leaning over. (A long front bookcase, one toppled by the stairs and two standing at the back made
+        // dead-end pockets the enemies got stuck in; removed.)
         Lean(Bookcase(g, new Vector3(-14f, FloorTop, 80f), 9f, 6f, 90f), new Vector3(-14f, FloorTop, 80f), Vector3.forward, 14f);
-        Topple(g, new Vector3(12.5f, FloorTop, 87f), 7f, 5f, 0f, Vector3.back);
 
-        // Back of the hall, under the back balcony: one standing, one down, two snapped off low.
-        Bookcase(g, new Vector3(-13f, FloorTop, 108f), 9f, R(1.6f, 2.6f), 0f);
-        Bookcase(g, new Vector3(13f, FloorTop, 108f), 9f, underBalcony, 0f);
+        // Back of the hall, under the back balcony: one down, one snapped off low.
         Topple(g, new Vector3(-13f, FloorTop, 115f), 9f, 4.5f, R(-10f, 10f), Vector3.back);
         Bookcase(g, new Vector3(13f, FloorTop, 115f), 9f, R(1.6f, 2.6f), 0f);
 
@@ -339,15 +423,15 @@ public static partial class LevelBuilder
         }
         // The chandelier that came down, on its side in the back of the hall.
         var fallen = Graybox.Group(g, "FallenChandelier");
-        Chandelier(fallen, new Vector3(-3f, FloorTop + 0.9f, 101f), FloorTop + 1.6f);
-        fallen.RotateAround(new Vector3(-3f, FloorTop, 101f), new Vector3(1f, 0f, 0.4f), 28f);
+        Chandelier(fallen, new Vector3(-8f, FloorTop + 0.9f, 44f), FloorTop + 1.6f);   // front of the hall (the back flight runs where it was)
+        fallen.RotateAround(new Vector3(-8f, FloorTop, 44f), new Vector3(1f, 0f, 0.4f), 28f);
         foreach (var l in fallen.GetComponentsInChildren<Light>()) { l.intensity = 0.9f; l.range = 12f; l.renderMode = LightRenderMode.Auto; l.GetComponent<LightFlicker>().amount = 0.5f; }
     }
 
     /// <summary>Two tall bookcases 3.5 m apart running out to the balcony edge at z: wall-jump between them up onto the balcony.</summary>
     private static void WallJumpShaft(Transform parent, int side, float z)
     {
-        const float x0 = 10f, x1 = BalconyIn - 0.2f, height = BalconyY + 0.7f - FloorTop;   // top just above the balcony
+        const float x0 = 15f, x1 = BalconyIn - 0.2f, height = BalconyY + 0.7f - FloorTop;   // top just above the balcony
         foreach (float dz in new[] { -2.25f, 2.25f })
             Bookcase(parent, new Vector3(side * (x0 + x1) * 0.5f, FloorTop, z + dz), x1 - x0, height, 0f);
     }
@@ -373,6 +457,7 @@ public static partial class LevelBuilder
     private static void HallLights(Transform parent)
     {
         var g = Graybox.Group(parent, "HallLights");
+        Chandelier(g, new Vector3(0f, 23f, 42f), Roof);   // the front of the hall
         Chandelier(g, new Vector3(0f, 23f, 86f), Roof);
         Chandelier(g, new Vector3(0f, 23f, 110f), Roof);
         // Damaged: the torches gutter.
@@ -388,12 +473,12 @@ public static partial class LevelBuilder
     {
         var g = Graybox.Group(parent, "HallDebris");
         float R(float a, float b) => a + (float)rng.NextDouble() * (b - a);
-        bool Clear(float x, float z) => !(Mathf.Abs(x) < 8.5f && z > 73f && z < 97f) && !(Mathf.Abs(x) < HoleHalf + 0.5f && Mathf.Abs(z - RotundaZ) < HoleHalf + 0.5f);
+        bool Clear(float x, float z) => new Vector2(x, z - DaisZ).magnitude > 21f && !(Mathf.Abs(x) < HoleHalf + 0.5f && Mathf.Abs(z - RotundaZ) < HoleHalf + 0.5f);
         string[] books = { Dungeon + "Book_09.prefab", Olive + "Book-closed 10.prefab", Olive + "Book-closed 12.prefab", Olive + "Book-closed 14.prefab", Olive + "Book-open 2.prefab" };
         // Torn runner down the hall, in pieces.
         for (float z = 70f; z < 118f; z += R(4f, 7f))
         {
-            if (z > 73f && z < 97f) { z = 97f; continue; }
+            if (z > DaisZ - 21f && z < DaisZ + 21f) { z = DaisZ + 21f; continue; }   // not under / over the dais
             var rug = Box(g, "RugPiece", new Vector3(R(-0.4f, 0.4f), FloorTop + 0.01f, z), new Vector3(3f, 0.02f, R(2f, 4f)), rugMat);
             rug.transform.rotation = Quaternion.Euler(0f, R(-12f, 12f), 0f);
         }
@@ -497,7 +582,6 @@ public static partial class LevelBuilder
         for (int i = 0; i < 4; i++)
             Lick(b + Vector3.up * (5.4f + (i % 2) * 0.3f) + Quaternion.Euler(0f, i * 90f + 45f, 0f) * Vector3.forward * 0.7f, 0.55f, i * 40f, flameMat);
         Prop(flame, Fx + "Sparks/Sparks yellow.prefab", b + Vector3.up * 5.5f, 0f, 1.5f);
-        Prop(flame, Fx + "Hits and explosions/Explosion.prefab", b + Vector3.up * 5.2f, 0f, 1.5f);   // plays once as it lights
         foreach (var t in g.GetComponentsInChildren<Transform>(true)) t.gameObject.isStatic = false;
 
         var light = PointLight(g, "TorchGlow", b + Vector3.up * 6f, new Color(1f, 0.62f, 0.28f), 30f, 5f, true, 0f);

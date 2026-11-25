@@ -91,6 +91,8 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
     private Vector3 detourDir;
     private float strafeSign = 1f, nextStrafeFlip;
     private bool hasLineOfSight = true;
+    private Transform approach;          // foot of a stair/ramp we're heading for (target is up on a ledge)
+    private float approachUntil;
     private float noSightTime, nextSightCheck;
 
     // Dash / melee animation
@@ -190,6 +192,7 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
     private void FixedUpdate()
     {
         if (IsDead || target == null) return;
+        if (GameFlow.PlayerDead) { if (!rb.isKinematic) rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f); return; }   // everyone stops
         if (transform.position.y < FallDeathHeight) { Die(); return; }   // knocked into a pit
         if (IsFrozen) return;
         if (IsStunned)
@@ -228,7 +231,16 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
         speedFactor = 1f;
         if (Winding) return Vector3.zero;            // plant feet to swing / cast
 
-        if (melee) return dist > meleeRange * 0.85f ? dir : Vector3.zero;
+        if (melee)
+        {
+            // Target up on a ledge: head for the foot of a stair / ramp first (ApproachPoint), not the wall under it.
+            float up = target.position.y - transform.position.y;
+            if (approach != null && (Time.time > approachUntil || up < 1.2f || Flat(approach.position - transform.position).sqrMagnitude < 2.25f))
+                approach = null;
+            if (approach == null && up > 1.2f && dist < 3f) PickApproach();
+            if (approach != null) return Flat(approach.position - transform.position).normalized;
+            return dist > meleeRange * 0.85f ? dir : Vector3.zero;
+        }
 
         // Ranged: no clear shot for a while -> move to find one (walk in and to the side).
         if (!hasLineOfSight && noSightTime > 1f)
@@ -303,11 +315,22 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
         if (stuckTime > 0.6f)
         {
             stuckTime = 0f;
+            if (melee && target != null && target.position.y - transform.position.y > 1.2f && PickApproach()) return;
             avoidSide = -avoidSide;
             detourDir = Quaternion.Euler(0f, 100f * avoidSide, 0f) * steer;
             detourUntil = Time.time + 0.8f;
         }
     }
+
+    private bool PickApproach()
+    {
+        approach = ApproachPoint.Best(transform.position, target.position);
+        approachUntil = Time.time + 6f;
+        if (approach != null) detourUntil = 0f;
+        return approach != null;
+    }
+
+    private static Vector3 Flat(Vector3 v) { v.y = 0f; return v; }
 
     private const float FallDeathHeight = -15f;
 
@@ -321,7 +344,7 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
     // ================================================================== per frame
     private void Update()
     {
-        if (IsDead) return;
+        if (IsDead || GameFlow.PlayerDead) return;   // no attacks once the player is dead
         UpdateFreeze();
         if (!IsFrozen && !IsStunned)
         {

@@ -14,7 +14,7 @@ public class LevelResults : MonoBehaviour
     /// <summary>Score that earns SSS in each level.</summary>
     public static readonly Dictionary<string, int> SssScore = new Dictionary<string, int>
     {
-        { GameFlow.Level1Scene, 8000 }, { GameFlow.Level2Scene, 15000 }, { GameFlow.Level3Scene, 20000 },
+        { GameFlow.Level1Scene, 6500 }, { GameFlow.Level2Scene, 13500 }, { GameFlow.Level3Scene, 18500 },
     };
     /// <summary>Share of the SSS score each rank starts at: D, C, B, A, S, SS, SSS.</summary>
     public static readonly float[] RankAt = { 0f, 0.2f, 0.35f, 0.5f, 0.65f, 0.8f, 1f };

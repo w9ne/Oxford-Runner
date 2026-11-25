@@ -110,9 +110,9 @@ public static class SpellSetup
         nova.displayName = "Arcane Nova";
         nova.uiColor = NovaColor;
         nova.cooldown = 6f;
-        nova.radius = 7f;
-        nova.damage = 58.5f;      // 45 x 1.3
-        nova.knockback = 30f;
+        nova.radius = 10f;        // big, heavy blast (was 7 m / 58.5 / 30)
+        nova.damage = 85f;
+        nova.knockback = 38f;
         nova.castTime = 0.3f;
         nova.castMoveMultiplier = 0.25f;
         nova.destroysProjectiles = true;

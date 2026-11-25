@@ -44,8 +44,16 @@ public class StyleMeter : MonoBehaviour
     private float lastGain = -99f;
     private float rankPop;                   // 1 on rank change, eases to 0
 
-    private class Line { public string text, label; public int count, shown; public float time; public Color color; }
+    private class Line { public string text, label; public int count, shown; public float time; public Color color; public bool rainbow; }
     private readonly List<Line> feed = new List<Line>();   // newest first, max 3
+
+    // Kill modifiers: each one multiplies the kill's points by 1.5 (they stack).
+    private const float ModifierBonus = 1.5f, MultiKillWindow = 1.2f;
+    private static readonly Color KillGreen = new Color(0.35f, 1f, 0.45f), MultiYellow = new Color(1f, 0.88f, 0.2f);
+    private FirstPersonController controller;
+    private float lastKillTime = -99f;
+    private int killStreak;
+    private readonly System.Text.StringBuilder rainbow = new System.Text.StringBuilder();
 
     private Text letter, rankName, scoreText, bestText;
     private Image barFill;
@@ -65,6 +73,7 @@ public class StyleMeter : MonoBehaviour
         if (level != null) { cleared = level.Cleared; level.LevelCleared += () => cleared = true; }
         var p = GameObject.FindGameObjectWithTag("Player");
         if (p == null) return;
+        controller = p.GetComponent<FirstPersonController>();
         var health = p.GetComponent<PlayerHealth>();
         if (health != null)
         {
@@ -85,10 +94,32 @@ public class StyleMeter : MonoBehaviour
     /// <summary>Called by Enemy after a player hit lands. combo/air are measured before the hit.</summary>
     public void EnemyHit(bool killed, bool reflected, bool combo, bool airborne)
     {
-        if (killed) Gain(Hit + (reflected ? ParryKill : Kill), reflected ? "PARRY KILL!" : "KILL");
+        if (killed) OnKill(reflected);
         else Gain(Hit, "HIT");
         if (combo) Gain(Combo, "COMBO");
         if (airborne) Gain(Airshot, "AIRSHOT");
+    }
+
+    // A kill, green. Killing while wall-running, in the air or sliding, and multikills (2 within 1.2 s: yellow;
+    // 3+: rainbow) each multiply the kill's points by 1.5.
+    private void OnKill(bool reflected)
+    {
+        killStreak = Time.time - lastKillTime <= MultiKillWindow ? killStreak + 1 : 1;
+        lastKillTime = Time.time;
+        bool wallRun = controller != null && controller.IsWallRunning, slide = controller != null && controller.IsSliding;
+        bool air = controller != null && !controller.IsGrounded;
+        float mult = KillMultiplier(wallRun, slide, air, killStreak);
+        string how = wallRun ? "WALLRUN " : slide ? "SLIDE " : air ? "AIR " : "";
+        Gain((Hit + (reflected ? ParryKill : Kill)) * mult, how + (reflected ? "PARRY KILL!" : "KILL"), KillGreen);
+        if (killStreak >= 3) Push("MULTIKILL", MultiYellow, rainbow: true);
+        else if (killStreak == 2) Push("MULTIKILL", MultiYellow);
+    }
+
+    /// <summary>Kill point multiplier: one movement bonus (wall-run, else slide, else air) and multikill, x1.5 each.</summary>
+    public static float KillMultiplier(bool wallRun, bool slide, bool air, int killStreak)
+    {
+        float mult = wallRun || slide || air ? ModifierBonus : 1f;
+        return killStreak >= 2 ? mult * ModifierBonus : mult;
     }
 
     private void OnPlayerDamaged(DamageInfo info)
@@ -106,12 +137,14 @@ public class StyleMeter : MonoBehaviour
         Push("- DIED", new Color(1f, 0.35f, 0.3f));
     }
 
-    private void Gain(float points, string label)
+    private void Gain(float points, string label) => Gain(points, label, Color.white);
+
+    private void Gain(float points, string label, Color color)
     {
         meter = Mathf.Min(meter + points, Total(Letters.Length));
         Score += Mathf.RoundToInt(points * Multiplier);
         lastGain = Time.time;
-        Push("+ " + label, Color.white);
+        Push("+ " + label, color);
     }
 
     private float Multiplier => 1f + rank * 0.35f;   // D 1x .. SSS 3.1x
@@ -123,16 +156,16 @@ public class StyleMeter : MonoBehaviour
         return t;
     }
 
-    private void Push(string text, Color color)
+    private void Push(string text, Color color, bool rainbow = false)
     {
-        if (feed.Count > 0 && feed[0].text == text && Time.time - feed[0].time < StackWindow)
+        if (feed.Count > 0 && feed[0].text == text && feed[0].rainbow == rainbow && Time.time - feed[0].time < StackWindow)
         {
             feed[0].count++;
             feed[0].time = Time.time;
         }
         else
         {
-            feed.Insert(0, new Line { text = text, count = 1, time = Time.time, color = color });
+            feed.Insert(0, new Line { text = text, count = 1, time = Time.time, color = color, rainbow = rainbow });
             if (feed.Count > feedTexts.Length) feed.RemoveAt(feed.Count - 1);
         }
     }
@@ -180,12 +213,28 @@ public class StyleMeter : MonoBehaviour
             if (i >= feed.Count) { feedTexts[i].text = ""; continue; }
             var l = feed[i];
             if (l.shown != l.count) { l.shown = l.count; l.label = l.count > 1 ? l.text + "  x" + l.count : l.text; }   // build once per change
-            feedTexts[i].text = l.label;
             float age = Time.time - l.time;
+            float alpha = Mathf.Clamp01(3f - age) * (i == 0 ? 1f : 0.7f);   // fade out after ~2 s
+            if (l.rainbow) { feedTexts[i].text = Rainbow(l.label, alpha); feedTexts[i].color = Color.white; continue; }
+            feedTexts[i].text = l.label;
             var col = l.color;
-            col.a = Mathf.Clamp01(3f - age) * (i == 0 ? 1f : 0.7f);   // fade out after ~2 s
+            col.a = alpha;
             feedTexts[i].color = col;
         }
+    }
+
+    // Each letter its own colour, the hues sliding along over time (rich text; only while a rainbow line shows).
+    private string Rainbow(string text, float alpha)
+    {
+        rainbow.Clear();
+        byte a = (byte)(alpha * 255f);
+        for (int i = 0; i < text.Length; i++)
+        {
+            Color32 c = Color.HSVToRGB(Mathf.Repeat(Time.time * 0.8f + i * 0.08f, 1f), 0.85f, 1f);
+            rainbow.Append("<color=#").Append(c.r.ToString("X2")).Append(c.g.ToString("X2")).Append(c.b.ToString("X2")).Append(a.ToString("X2")).Append('>')
+                   .Append(text[i]).Append("</color>");
+        }
+        return rainbow.ToString();
     }
 
     private void BuildUi()

@@ -63,6 +63,9 @@ public class PlayerHealth : MonoBehaviour, IDamageable
         IsDead = true;
         Died?.Invoke();
 
+        // Campaign levels: death sequence + YOU DIED screen (restart / quit). Elsewhere (tutorial): back to the checkpoint.
+        if (FindAnyObjectByType<LevelManager>() != null) { DeathScreen.Play(this); return; }
+
         if (Checkpoints.HasCheckpoint && controller != null)
         {
             Checkpoints.Respawn(controller);

@@ -18,6 +18,7 @@ public class SpellCaster : MonoBehaviour
     [SerializeField] private bool showCrosshair = true;
 
     private readonly Dictionary<Spell, float> readyTime = new Dictionary<Spell, float>();
+    private readonly Dictionary<Spell, float> castAt = new Dictionary<Spell, float>();   // hotbar effect burst
     private int selected;
 
     /// <summary>Raised after a spell is successfully cast (used for hand/book animation, audio, etc).</summary>
@@ -87,6 +88,7 @@ public class SpellCaster : MonoBehaviour
             windingSpell = spell;
             windEnd = Time.time + spell.castTime;
             readyTime[spell] = windEnd + spell.cooldown;
+            castAt[spell] = Time.unscaledTime;
             spell.BeginCast(this);
             Cast?.Invoke(spell);
             StartCoroutine(Release(spell));
@@ -97,6 +99,7 @@ public class SpellCaster : MonoBehaviour
         Vector3 dir = AimDirection(origin);
         spell.Cast(this, origin, dir);
         readyTime[spell] = Time.time + spell.cooldown;
+        castAt[spell] = Time.unscaledTime;
         Cast?.Invoke(spell);
         return true;
     }
@@ -122,8 +125,12 @@ public class SpellCaster : MonoBehaviour
         float cx = Screen.width * 0.5f, cy = Screen.height * 0.5f;
         Spell spell = CurrentSpell;
         bool ready = spell == null || CooldownRemaining(spell) <= 0f;
-        GUI.color = ready ? Color.white : new Color(1f, 1f, 1f, 0.35f);
-        GUI.DrawTexture(new Rect(cx - 2, cy - 2, 4, 4), Texture2D.whiteTexture);
+        // Crosshair: a ring (dims while the spell cools down) with a tiny centre dot.
+        float ui0 = Screen.height / 1080f, r = 18f * ui0;
+        GUI.color = ready ? new Color(1f, 1f, 1f, 0.9f) : new Color(1f, 1f, 1f, 0.3f);
+        GUI.DrawTexture(new Rect(cx - r, cy - r, r * 2f, r * 2f), CrosshairRing.Texture);
+        GUI.DrawTexture(new Rect(cx - 1.5f * ui0, cy - 1.5f * ui0, 3f * ui0, 3f * ui0), Texture2D.whiteTexture);
+        GUI.color = Color.white;
 
         DrawHotbar();
         DrawSwitchName(cx, cy);
@@ -152,8 +159,14 @@ public class SpellCaster : MonoBehaviour
         int count = UnlockedCount;
         if (count == 0) return;
         float ui = Screen.height / 1080f;
-        float w = 235f * ui, h = 105f * ui, gap = 12f * ui;
-        float x0 = (Screen.width - (count * w + (count - 1) * gap)) * 0.5f;
+        float w = 180f * ui, h = 88f * ui, gap = 10f * ui;
+        // Bottom right, clear of the health bar + ability boxes (the HUD canvas scales by width and height mixed,
+        // CanvasScaler match 0.5): narrow screens shrink the slots instead of overlapping them.
+        float hudScale = Mathf.Pow(2f, (Mathf.Log(Screen.width / 1920f, 2f) + Mathf.Log(Screen.height / 1080f, 2f)) * 0.5f);
+        float room = Screen.width - PlayerHUD.LeftWidth * hudScale - 30f * ui;
+        float fit = Mathf.Min(1f, room / (count * w + (count - 1) * gap));
+        w *= fit; h *= fit; gap *= fit; ui *= fit;
+        float x0 = Screen.width - (count * w + (count - 1) * gap) - 30f * ui;
         float y = Screen.height - h - 24f * ui;
 
         if (nameStyle == null)   // built once: OnGUI runs several times a frame
@@ -162,9 +175,9 @@ public class SpellCaster : MonoBehaviour
             keyStyle = new GUIStyle(GUI.skin.label) { font = MenuUI.Font, alignment = TextAnchor.UpperLeft };
             cdStyle = new GUIStyle(GUI.skin.label) { font = MenuUI.Font, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
         }
-        nameStyle.fontSize = Mathf.RoundToInt(28 * ui);
-        keyStyle.fontSize = Mathf.RoundToInt(22 * ui);
-        cdStyle.fontSize = Mathf.RoundToInt(36 * ui);
+        nameStyle.fontSize = Mathf.RoundToInt(22 * ui);
+        keyStyle.fontSize = Mathf.RoundToInt(20 * ui);
+        cdStyle.fontSize = Mathf.RoundToInt(32 * ui);
 
         for (int i = 0; i < count; i++)
         {
@@ -185,6 +198,10 @@ public class SpellCaster : MonoBehaviour
                 GUI.color = new Color(0f, 0f, 0f, 0.6f);
                 GUI.DrawTexture(new Rect(r.x, r.y, r.width, r.height * frac), Texture2D.whiteTexture);
             }
+
+            // The spell's own effect inside the slot: gentle while selected, flaring up when cast.
+            float burst = castAt.TryGetValue(s, out float at) ? Mathf.Clamp01(1f - (Time.unscaledTime - at) / 0.9f) : 0f;
+            HotbarFx.Draw(r, s.gesture, Mathf.Max(sel ? 0.45f : 0f, burst), Time.unscaledTime);
 
             GUI.color = Color.white;
             keyStyle.normal.textColor = new Color(1f, 1f, 1f, 0.7f);

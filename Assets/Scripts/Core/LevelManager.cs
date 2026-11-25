@@ -31,12 +31,16 @@ public class LevelManager : MonoBehaviour
         public string name = "Area";
         [Tooltip("Walking into this box starts the area's waves.")]
         public Bounds triggerArea = new Bounds(Vector3.zero, Vector3.one * 20f);
+        [Tooltip("Optional: no start while the player is in here (e.g. still on the stairs up). Size 0 = unused.")]
+        public Bounds triggerIgnore;
         public Transform[] spawnPoints;
         [Tooltip("Optional: mages spawn here first (e.g. balconies); everyone else only uses spawnPoints.")]
         public Transform[] mageSpawnPoints;
         public List<Wave> waves = new List<Wave>();
         [Tooltip("Enemies already placed in the level that belong to this area (tower casters etc).")]
         public List<Enemy> garrison = new List<Enemy>();
+        [Tooltip("This area's share of skeletons among the non-commanders (-1 = the level's skeletonShare).")]
+        [Range(-1f, 1f)] public float skeletonShare = -1f;
         [Tooltip("Garrison wakes when the player walks in instead of when the area unlocks (so they can't shoot you on the way there).")]
         public bool garrisonWakesOnEnter;
         [Tooltip("Barriers that block the way into this area; removed when the area unlocks.")]
@@ -140,7 +144,8 @@ public class LevelManager : MonoBehaviour
         if (!Cleared && current < encounters.Count)
         {
             var e = encounters[current];
-            if (!e.started && e.triggerArea.Contains(player.position))
+            if (!e.started && e.triggerArea.Contains(player.position)
+                && !(e.triggerIgnore.size != Vector3.zero && e.triggerIgnore.Contains(player.position)))
             {
                 e.started = true;
                 if (e.checkpoint != null) Checkpoints.Set(e.checkpoint.position, e.checkpoint.eulerAngles.y);
@@ -181,7 +186,7 @@ public class LevelManager : MonoBehaviour
 
     private static void WakeGarrison(Encounter e)
     {
-        foreach (var g in e.garrison) if (g != null) g.gameObject.SetActive(true);
+        foreach (var g in e.garrison) if (g != null) BeamIn.Play(g.gameObject, UnityEngine.Random.Range(0f, 0.4f));
     }
 
     // Waits for the way back to finish shutting, then destroys what's behind it and frees its meshes.
@@ -226,7 +231,7 @@ public class LevelManager : MonoBehaviour
         foreach (var wave in e.waves)
             for (int i = 0; i < wave.enemyCount; i++, index++)
             {
-                Enemy type = PickType(index, total);
+                Enemy type = PickType(index, total, e.skeletonShare >= 0f ? e.skeletonShare : skeletonShare);
                 if (type != null && type == magePrefab && upper < upperSlots) Spawn(e, wave, e.mageSpawnPoints, upper++, type);
                 else Spawn(e, wave, e.spawnPoints, main++, type);
             }
@@ -234,7 +239,7 @@ public class LevelManager : MonoBehaviour
     }
 
     // Skeletons and mages mixed by skeletonShare (skeleton first); the last few are commanders.
-    private Enemy PickType(int index, int total)
+    private Enemy PickType(int index, int total, float skeletonShare)
     {
         int commanders = commandersPerArea >= 0 ? Mathf.Min(commandersPerArea, total) : total >= 9 ? 2 : total >= 4 ? 1 : 0;
         Enemy pick;
@@ -311,6 +316,7 @@ public class LevelManager : MonoBehaviour
         var enemy = Instantiate(prefab, pos, point.rotation);
         enemy.Configure(wave.enemyHealth, wave.enemySpeed, wave.enemyFireInterval);
         e.alive.Add(enemy);
+        BeamIn.Play(enemy.gameObject, UnityEngine.Random.Range(0f, 0.4f));   // beams in instead of popping up
     }
 
     private void OpenPortal()

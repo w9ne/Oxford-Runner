@@ -41,6 +41,9 @@ public static class GameFlow
     /// <summary>True while the pause menu is open; gameplay input ignores the mouse.</summary>
     public static bool Paused { get; set; }
 
+    /// <summary>True after the player died in a level: enemies freeze, the death screen is up.</summary>
+    public static bool PlayerDead { get; set; }
+
     /// <summary>True while the level results screen is up (the pause menu stays shut).</summary>
     public static bool ShowingResults { get; set; }
 
@@ -58,6 +61,13 @@ public static class GameFlow
     }
 
     public static void ToMainMenu() => Load(MainMenuScene);
+
+    /// <summary>Death screen: play the current level again from the start, at full health.</summary>
+    public static void RestartLevel()
+    {
+        CarriedHealth = -1f;
+        Load(SceneManager.GetActiveScene().name);
+    }
 
     public static void Quit()
     {
@@ -95,6 +105,7 @@ public static class GameFlow
     {
         Paused = false;
         ShowingResults = false;
+        PlayerDead = false;
         Time.timeScale = 1f;
         SceneManager.LoadScene(scene);
     }

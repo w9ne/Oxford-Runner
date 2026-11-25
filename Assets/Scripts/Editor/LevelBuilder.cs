@@ -375,8 +375,8 @@ public static partial class LevelBuilder
             return false;
         }
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return false;
-        // Level 1 and 2 are hand-edited: rebuilding throws those edits away.
-        if ((sceneName == "Level1" || sceneName == "Level2") && System.IO.File.Exists($"Assets/Scenes/{sceneName}.unity")
+        // Levels 1-3 are hand-edited: rebuilding throws those edits away.
+        if ((sceneName == "Level1" || sceneName == "Level2" || sceneName == "Level3") && System.IO.File.Exists($"Assets/Scenes/{sceneName}.unity")
             && !EditorUtility.DisplayDialog("Build " + label, $"{sceneName} has hand edits. Rebuilding overwrites them.", "Overwrite", "Cancel"))
             return false;
         if (!AssetDatabase.IsValidFolder("Assets/Materials/Levels")) AssetDatabase.CreateFolder("Assets/Materials", "Levels");

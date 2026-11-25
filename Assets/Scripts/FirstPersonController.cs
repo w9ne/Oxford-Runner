@@ -100,6 +100,8 @@ public class FirstPersonController : MonoBehaviour
     public bool IsWallRunning => isWallRunning;
     private SpellCaster spellCaster;
     public bool IsDashing => isDashing;
+    /// <summary>0 right after a dash, refilling to 1 when the next dash is ready (HUD meter).</summary>
+    public float DashCharge => dashCooldown <= 0f ? 1f : Mathf.Clamp01(1f - (nextDashTime - Time.time) / dashCooldown);
     public bool IsSliding => isSliding;
     /// <summary>Holds the slide as if the key were down (for testing / scripted sequences).</summary>
     public bool ForceSlideHeld { get; set; }
@@ -180,7 +182,7 @@ public class FirstPersonController : MonoBehaviour
         // ticks and juddered sideways while strafing (A/D) and turning.
         if (cameraPivot != null)
         {
-            cameraPivot.rotation = Quaternion.Euler(pitch, yaw, currentTilt);
+            cameraPivot.rotation = Quaternion.Euler(new Vector3(pitch, yaw, currentTilt) + CameraShake.Offset());
             Vector3 lp = cameraPivot.localPosition;
             float targetY = isSliding ? slideCameraHeight : standCameraHeight;
             lp.y = Mathf.Lerp(lp.y, targetY, 15f * Time.deltaTime);

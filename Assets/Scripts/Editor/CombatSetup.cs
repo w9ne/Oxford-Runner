@@ -71,15 +71,15 @@ public static class CombatSetup
 
         EditPrefab(BoltPrefab, root =>
         {
-            foreach (var ps in root.GetComponentsInChildren<ParticleSystem>(true))
-            {
-                var main = ps.main;
-                Color c = main.startColor.color;
-                // Keep each layer's brightness but shift the hue to magenta.
-                float v = Mathf.Max(c.r, c.g, c.b);
-                main.startColor = new Color(BoltColor.r * v, BoltColor.g * v, BoltColor.b * v, c.a);
-            }
-            foreach (var l in root.GetComponentsInChildren<Light>(true)) { l.color = BoltColor; l.intensity = Mathf.Max(l.intensity, 3f); }
+            // Just the glowing orb + trail: the copied fireball particles were bigger than the hit sphere, so bolts
+            // looked like they hit you before touching you. The orb is exactly the hit size (0.4 m = 2 x hitRadius).
+            var proj = root.GetComponent<SpellProjectile>();
+            var visualProp = new SerializedObject(proj);
+            var visual = visualProp.FindProperty("visual").objectReferenceValue as Transform;
+            if (visual != null && visual != root.transform) Object.DestroyImmediate(visual.gameObject);
+            visualProp.FindProperty("visual").objectReferenceValue = null;
+            visualProp.ApplyModifiedPropertiesWithoutUndo();
+            foreach (var ps in root.GetComponentsInChildren<ParticleSystem>(true)) Object.DestroyImmediate(ps.gameObject);
             AddCore(root);
         });
         return AssetDatabase.LoadAssetAtPath<GameObject>(BoltPrefab);

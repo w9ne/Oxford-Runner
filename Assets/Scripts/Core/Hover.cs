@@ -23,6 +23,7 @@ public class Hover : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (GameFlow.PlayerDead) return;   // freeze with everyone else
         if (wander > 0f)
         {
             if ((anchor - target).sqrMagnitude < 1f || Time.time > retargetAt) PickTarget();

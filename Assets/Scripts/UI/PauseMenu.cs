@@ -28,7 +28,7 @@ public class PauseMenu : MonoBehaviour
 
     private void Update()
     {
-        if (!Input.GetKeyDown(KeyCode.Escape) || GameFlow.ShowingResults) return;
+        if (!Input.GetKeyDown(KeyCode.Escape) || GameFlow.ShowingResults || GameFlow.PlayerDead) return;
         if (!GameFlow.Paused) Pause();
         else if (settingsPanel.gameObject.activeSelf) Show(false);
         else Resume();
