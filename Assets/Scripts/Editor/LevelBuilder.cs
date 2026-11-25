@@ -15,7 +15,7 @@ using UnityEngine;
 ///   Level 2 "Castle Grounds": walled courtyards outside a castle. Lots of cylindrical towers to wall-run
 ///                         around, watchtowers with casters, barricade lines enemies hide behind.
 /// </summary>
-public static class LevelBuilder
+public static partial class LevelBuilder
 {
     private const string PlayerPrefabPath = "Assets/Prefabs/Player.prefab";
     private const string EnemyPrefabPath = "Assets/Prefabs/Enemy.prefab";
@@ -46,7 +46,6 @@ public static class LevelBuilder
         Island(a, new Vector3(0f, 0f, 0f), new Vector2(24f, 30f));
         Rock(a, new Vector3(-7f, 0f, 4f), new Vector3(2.5f, 1.5f, 2f), 20f);
         Rock(a, new Vector3(8f, 0f, -6f), new Vector3(2f, 2.5f, 2f), -15f);
-        SlideTunnel(a, new Vector3(0f, 0f, 7f), 8f, 5f, 0f);          // slide out to the first pit
 
         // --- Pit 1 (18 m): twin wall-run walls either side of the gap.
         var p1 = Group("Pit1_TwinWalls");
@@ -148,14 +147,7 @@ public static class LevelBuilder
     public static void BuildLevel2()
     {
         if (!Begin("Level2", "Castle Grounds")) return;
-        groundMat = Mat("L2_Ground", new Color(0.45f, 0.5f, 0.35f));
-        cliffMat = Mat("L2_Dirt", new Color(0.4f, 0.33f, 0.26f));
-        stoneMat = Mat("L2_CastleStone", new Color(0.55f, 0.55f, 0.6f));
-        wallRunMat = Mat("L2_TowerWallRun", new Color(0.42f, 0.5f, 0.72f));
-        rockMat = Mat("L2_Rock", new Color(0.48f, 0.48f, 0.5f));
-        woodMat = Mat("L2_Barricade", new Color(0.5f, 0.34f, 0.2f));
-        roofMat = Mat("L2_Roof", new Color(0.3f, 0.32f, 0.45f));
-        portalMat = Mat("Portal", new Color(0.4f, 0.9f, 1f));
+        Level2Materials();
         SetAtmosphere(new Color(0.85f, 0.75f, 0.62f), 0.004f, Quaternion.Euler(28f, 60f, 0f), new Color(1f, 0.85f, 0.65f));
 
         const float halfW = 55f;
@@ -169,11 +161,7 @@ public static class LevelBuilder
 
         // --- Outer field: scattered round towers, two watchtowers, loose barricades.
         var o = Group("A_OuterField");
-        var oGarrison = new List<Enemy>
-        {
-            WatchTower(o, new Vector3(-30f, 0f, 30f), 2.2f, 9f),
-            WatchTower(o, new Vector3(32f, 0f, 22f), 2.2f, 10f),
-        };
+        var oGarrison = Level2OuterRampart(o);
         RoundTower(o, new Vector3(-12f, 0f, 14f), 2.5f, 12f);
         RoundTower(o, new Vector3(14f, 0f, 36f), 3f, 14f);
         RoundTower(o, new Vector3(-40f, 0f, 6f), 2.5f, 10f);
@@ -183,14 +171,13 @@ public static class LevelBuilder
         BarricadeLine(o, new Vector3(20f, 0f, 46f), 3, 10f);
         Barricade(o, new Vector3(-4f, 0f, 44f), 15f);
         Barricade(o, new Vector3(30f, 0f, 8f), 80f);
-        SlideTunnel(o, new Vector3(0f, 0f, 2f), 8f, 5f, 0f);
         ConnectWall(o, new Vector3(-12f, 0f, 14f), new Vector3(0f, 0f, 30f), 7f);
         ConnectWall(o, new Vector3(0f, 0f, 30f), new Vector3(14f, 0f, 36f), 7f);
         ConnectWall(o, new Vector3(-40f, 0f, 6f), new Vector3(-30f, 0f, 30f), 6f);
         LowBeam(o, new Vector3(-26f, 0f, 48f), 6f, 0f, woodMat);
         LowBeam(o, new Vector3(28f, 0f, 34f), 6f, 90f, woodMat);
         Encounter("Outer Field", o, new Vector3(0f, 0f, 25f), new Vector2(halfW * 2f, 70f), oGarrison,
-                  new[] { new Vector3(-20f, 0f, 52f), new Vector3(20f, 0f, 54f), new Vector3(-45f, 0f, 45f), new Vector3(45f, 0f, 30f) },
+                  new[] { new Vector3(-20f, 0f, 46f), new Vector3(20f, 0f, 47f), new Vector3(-45f, 0f, 45f), new Vector3(45f, 0f, 30f) },
                   Wave(4, 50f, 3.6f, 3f), Wave(5, 50f, 3.8f, 2.8f));
 
         // --- Inner wall with a gate between two big round towers.
@@ -199,11 +186,7 @@ public static class LevelBuilder
 
         // --- Inner yard: a grid of round towers to weave through, barricade rows.
         var y = Group("B_InnerYard");
-        var yGarrison = new List<Enemy>
-        {
-            WatchTower(y, new Vector3(-36f, 0f, 100f), 2.4f, 11f),
-            WatchTower(y, new Vector3(36f, 0f, 92f), 2.4f, 11f),
-        };
+        var yGarrison = Level2YardRamparts(y);
         var rng = new System.Random(20261123);
         for (int row = 0; row < 3; row++)
         {
@@ -214,7 +197,7 @@ public static class LevelBuilder
                 float z = 76f + row * 16f;
                 var pos = new Vector3(x, 0f, z);
                 if (Mathf.Abs(x) < 4f && row == 0) continue;   // keep the gate approach open
-                if (Vector3.Distance(pos, new Vector3(-36f, 0f, 100f)) < 8f || Vector3.Distance(pos, new Vector3(36f, 0f, 92f)) < 8f) continue;
+                if (Vector3.Distance(pos, new Vector3(-36f, 0f, 100f)) < 8f || Vector3.Distance(pos, new Vector3(36f, 0f, 92f)) < 8f) continue;   // old watchtower spots, kept so the grid matches the scene
                 RoundTower(y, pos, 2f + (float)rng.NextDouble() * 1.2f, 9f + (float)rng.NextDouble() * 6f);
                 placed[col] = pos;
             }
@@ -228,10 +211,10 @@ public static class LevelBuilder
         BarricadeLine(y, new Vector3(-20f, 0f, 118f), 4, 0f);
         BarricadeLine(y, new Vector3(22f, 0f, 116f), 4, 0f);
         BarricadeLine(y, new Vector3(0f, 0f, 104f), 2, 90f);
-        Barricade(y, new Vector3(-44f, 0f, 80f), 60f);
-        Barricade(y, new Vector3(44f, 0f, 120f), -60f);
+        Barricade(y, new Vector3(-38f, 0f, 80f), 60f);
+        Barricade(y, new Vector3(38f, 0f, 120f), -60f);
         var yard = Encounter("Inner Yard", y, new Vector3(0f, 0f, 98f), new Vector2(halfW * 2f, 66f), yGarrison,
-                  new[] { new Vector3(-40f, 0f, 126f), new Vector3(40f, 0f, 126f), new Vector3(0f, 0f, 128f), new Vector3(-48f, 0f, 96f), new Vector3(48f, 0f, 104f) },
+                  new[] { new Vector3(-40f, 0f, 126f), new Vector3(40f, 0f, 126f), new Vector3(0f, 0f, 128f), new Vector3(-40f, 0f, 92f), new Vector3(40f, 0f, 106f) },
                   Wave(4, 55f, 3.8f, 2.8f), Wave(5, 55f, 4f, 2.6f), Wave(5, 60f, 4f, 2.4f));
         yard.gates.Add(door1);
         yard.gates.Add(AreaGate(Group("Gate_OuterToYard"), 62f, halfW * 2f + 10f, visible: false));
@@ -259,6 +242,7 @@ public static class LevelBuilder
         ConnectWall(k, new Vector3(-16f, 0f, 150f), new Vector3(-42f, 0f, 160f), 8f);
         ConnectWall(k, new Vector3(16f, 0f, 150f), new Vector3(42f, 0f, 160f), 8f);
         LowBeam(k, new Vector3(0f, 0f, 174f), 8f, 0f, woodMat);
+        Level2Palisades(k);
         var keep = Encounter("Keep Approach", k, new Vector3(0f, 0f, 165f), new Vector2(halfW * 2f, 56f), kGarrison,
                   new[] { new Vector3(-46f, 0f, 186f), new Vector3(46f, 0f, 186f), new Vector3(-20f, 0f, 188f), new Vector3(20f, 0f, 188f) },
                   Wave(5, 60f, 4.2f, 2.4f), Wave(6, 65f, 4.2f, 2.2f));
@@ -271,8 +255,128 @@ public static class LevelBuilder
                                   new Vector3(-2f, 0f, 169f), new Vector3(-31f, 0f, 148f), new Vector3(26f, 0f, 148f) })
             Cubby(cub, c, 180f, stoneMat);
         var portal = Portal(k, new Vector3(0f, 0f, 184f), 0f);
+        Level2Trees(grounds);
 
         Finish("Level 2 - Castle Grounds", new Vector3(0f, 0f, -8f), 0f, portal, killY: -12f, killCenterZ: 90f);
+    }
+
+    /// <summary>Loads the Level 2 materials into the shared fields (also used when patching the open scene).</summary>
+    public static void Level2Materials()
+    {
+        groundMat = Mat("L2_Ground", new Color(0.45f, 0.5f, 0.35f));
+        cliffMat = Mat("L2_Dirt", new Color(0.4f, 0.33f, 0.26f));
+        stoneMat = Mat("L2_CastleStone", new Color(0.55f, 0.55f, 0.6f));
+        wallRunMat = Mat("L2_TowerWallRun", new Color(0.42f, 0.5f, 0.72f));
+        rockMat = Mat("L2_Rock", new Color(0.48f, 0.48f, 0.5f));
+        woodMat = Mat("L2_Barricade", new Color(0.5f, 0.34f, 0.2f));
+        roofMat = Mat("L2_Roof", new Color(0.3f, 0.32f, 0.45f));
+        portalMat = Mat("Portal", new Color(0.4f, 0.9f, 1f));
+    }
+
+    /// <summary>Area 1: a rampart across the far edge of the field (arch underneath), garrison tower at each end.</summary>
+    public static List<Enemy> Level2OuterRampart(Transform o)
+    {
+        var g = Graybox.Group(o, "Rampart");
+        const float h = 6f, z = 55f;
+        // Front faces -z (toward the start). Ground ramps at x = -14 / +10 (clear of the cubby at -9).
+        Rampart(g, new Vector3(0f, 0f, z), 65f, 0f, h, archWidth: 8f, openAt: new[] { -14f, 10f });
+        foreach (float x in new[] { -14f, 10f })
+            Ramp(g, new Vector3(x, h, z - 2f), Vector3.back, 3f, 32f);
+        // Speed lanes: wall-run slabs from the start toward the ramps, cover from the towers.
+        FreeWall(g, new Vector3(-20f, 0f, 27f), 14f, 0f);
+        FreeWall(g, new Vector3(20f, 0f, 27f), 14f, 0f);
+        return new List<Enemy>
+        {
+            RampartTower(g, new Vector3(-36f, 0f, z), Vector3.right, h),
+            RampartTower(g, new Vector3(36f, 0f, z), Vector3.left, h),
+        };
+    }
+
+    /// <summary>Area 2: a rampart along each side wall, garrison towers at both ends of each (crossfire).</summary>
+    public static List<Enemy> Level2YardRamparts(Transform y)
+    {
+        var garrison = new List<Enemy>();
+        const float h = 6f, z0 = 70f, z1 = 124f, rampZ = 100f;
+        foreach (float side in new[] { -1f, 1f })
+        {
+            var g = Graybox.Group(y, side < 0 ? "Rampart_L" : "Rampart_R");
+            float x = side * 47f;
+            // yaw -90 (left) / 90 (right): the front face looks at the middle of the yard; local x runs along z.
+            float yaw = side * 90f, mid = (z0 + z1) * 0.5f;
+            Rampart(g, new Vector3(x, 0f, mid), z1 - z0 - 7f, yaw, h, openAt: new[] { -side * (rampZ - mid) });
+            Ramp(g, new Vector3(x - side * 2f, h, rampZ), Vector3.right * -side, 3f, 32f);
+            garrison.Add(RampartTower(g, new Vector3(x, 0f, z0), Vector3.forward, h));
+            garrison.Add(RampartTower(g, new Vector3(x, 0f, z1), Vector3.back, h));
+        }
+        return garrison;
+    }
+
+    /// <summary>Area 3: tall wooden palisades in the open gaps of the keep approach, to wall-run instead of walking round.</summary>
+    public static void Level2Palisades(Transform k)
+    {
+        var g = Graybox.Group(k, "Palisades");
+        Palisade(g, new Vector3(-6f, 0f, 143f), 16f, 0f);
+        Palisade(g, new Vector3(20f, 0f, 143f), 14f, 0f);
+        Palisade(g, new Vector3(-34f, 0f, 166f), 12f, 90f);
+        Palisade(g, new Vector3(34f, 0f, 166f), 12f, 90f);
+        Palisade(g, new Vector3(0f, 0f, 159f), 10f, 0f);
+    }
+
+    /// <summary>Big trees and a grass apron outside the curtain walls (out of reach, background only).</summary>
+    public static void Level2Trees(Transform parent)
+    {
+        var g = Graybox.Group(parent, "Scenery_Trees");
+        Box(g, "OuterGround", new Vector3(0f, -0.6f, 90f), new Vector3(500f, 1f, 600f), groundMat);
+        var rng = new System.Random(20261124);
+        float R(float a, float b) => a + (float)rng.NextDouble() * (b - a);
+        string[] kinds = { SNP + "Tree_01.prefab", SNP + "Tree_03.prefab", SNP + "Tree_04.prefab", SNP + "Tree_05.prefab", Nature + "Vegetation/Trees/rpgpp_lt_tree_01.prefab", Nature + "Vegetation/Trees/rpgpp_lt_tree_pine_01.prefab" };
+        void Tree(Vector3 p) { string k = kinds[rng.Next(kinds.Length)]; Prop(g, k, p, R(0f, 360f), k.Contains("rpgpp") ? R(2f, 3f) : R(3f, 4.5f)); }
+        for (int i = 0; i < 48; i++) Tree(new Vector3((i % 2 == 0 ? -1f : 1f) * R(68f, 140f), 0f, R(-40f, 220f)));   // both sides
+        for (int i = 0; i < 16; i++) Tree(new Vector3(R(-120f, 120f), 0f, R(-80f, -26f)));                            // behind the start
+    }
+
+    /// <summary>
+    /// Walkable rampart: a 4 m thick wall (front face wall-runnable) with merlons along the front edge and a
+    /// low rail along the back. Runs along local X; at yaw 0 the front faces -z. Optional arch through the
+    /// middle (the walk carries on over it). Merlons are left out within 2.5 m of each openAt (local x) for ramps.
+    /// </summary>
+    private static void Rampart(Transform parent, Vector3 center, float length, float yaw, float height, float archWidth = 0f, float[] openAt = null)
+    {
+        const float thick = 4f, archHeight = 4f;
+        Quaternion r = Quaternion.Euler(0f, yaw, 0f);
+        Vector3 At(float x, float y, float z) => center + r * new Vector3(x, y, z);
+        if (archWidth > 0f)
+        {
+            float seg = (length - archWidth) * 0.5f;
+            for (int s = -1; s <= 1; s += 2)
+                Box(parent, "RampartWall", At(s * (archWidth + seg) * 0.5f, height * 0.5f, 0f), new Vector3(seg, height, thick), stoneMat, true, yaw);
+            Box(parent, "RampartArch", At(0f, (archHeight + height) * 0.5f, 0f), new Vector3(archWidth, height - archHeight, thick), stoneMat, false, yaw);
+        }
+        else Box(parent, "RampartWall", At(0f, height * 0.5f, 0f), new Vector3(length, height, thick), stoneMat, true, yaw);
+
+        Box(parent, "Rail", At(0f, height + 0.5f, thick * 0.5f - 0.2f), new Vector3(length, 1f, 0.4f), stoneMat, false, yaw);
+        for (float x = -length * 0.5f + 1.5f; x <= length * 0.5f - 1.5f; x += 3f)
+        {
+            if (openAt != null && openAt.Any(o => Mathf.Abs(o - x) < 2.5f)) continue;
+            Box(parent, "Merlon", At(x, height + 0.6f, -thick * 0.5f + 0.3f), new Vector3(1.5f, 1.2f, 0.6f), stoneMat, false, yaw);
+        }
+    }
+
+    /// <summary>Watchtower (r 3.5, 11 m) at the end of a rampart with a ramp from the wall-walk up to its deck.
+    /// alongWall points from the tower along the wall. Returns the garrison.</summary>
+    private static Enemy RampartTower(Transform parent, Vector3 basePoint, Vector3 alongWall, float wallHeight)
+    {
+        const float radius = 3.5f, height = 11f;
+        var caster = WatchTower(parent, basePoint, radius, height);
+        float deck = radius * 2f + 0.6f, top = height + 0.4f;
+        Ramp(caster.transform.parent, basePoint + alongWall * (deck * 0.5f) + Vector3.up * top, alongWall, 2f, 32f, bottom: wallHeight);
+        return caster;
+    }
+
+    /// <summary>Tall wooden palisade (3.5 m, too tall to jump): wall-run along it or go round.</summary>
+    private static void Palisade(Transform parent, Vector3 basePoint, float length, float yaw)
+    {
+        Box(parent, "Palisade", basePoint + Vector3.up * 1.75f, new Vector3(length, 3.5f, 0.5f), woodMat, true, yaw);
     }
 
     // ================================================================== build plumbing
@@ -317,6 +421,7 @@ public static class LevelBuilder
         manager.Configure(levelName, enemyPrefab, startT, portal, encounters);
         manager.ConfigureTypes(EnemySetup.Load(EnemySetup.SkeletonPath), EnemySetup.Load(EnemySetup.MagePath),
                                EnemySetup.Load(EnemySetup.CommanderPath));
+        SetGarrisonAura(manager);
         EditorUtility.SetDirty(manager);
 
         EditorSceneManager.SaveScene(scene, scenePath);
@@ -539,6 +644,32 @@ public static class LevelBuilder
         }
     }
 
+    public const string GarrisonAuraPath = "Assets/Hovl Studio/Magic effects pack/Prefabs/Character auras/Buff.prefab";
+
+    private static Material GarrisonGlowMaterial()
+    {
+        string path = MatDir + "GarrisonGlow.mat";
+        var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (mat == null)
+        {
+            mat = new Material(Shader.Find("Legacy Shaders/Particles/Additive"));
+            AssetDatabase.CreateAsset(mat, path);
+        }
+        mat.SetColor("_TintColor", new Color(1f, 0.35f, 0.15f, 0.22f));
+        EditorUtility.SetDirty(mat);
+        AssetDatabase.SaveAssetIfDirty(mat);
+        return mat;
+    }
+
+    /// <summary>Gives a level's garrison enemies the glowing aura (also used to patch hand-edited scenes).</summary>
+    public static void SetGarrisonAura(LevelManager manager)
+    {
+        var so = new SerializedObject(manager);
+        so.FindProperty("garrisonAura").objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>(GarrisonAuraPath);
+        so.FindProperty("garrisonGlowMaterial").objectReferenceValue = GarrisonGlowMaterial();
+        so.ApplyModifiedPropertiesWithoutUndo();
+    }
+
     private static Material Mat(string name, Color color)
     {
         string path = MatDir + name + ".mat";
@@ -692,10 +823,10 @@ public static class LevelBuilder
         return Garrison(t, basePoint + Vector3.up * top);
     }
 
-    /// <summary>A walkable slope from the ground (y = 0) up to <paramref name="top"/>, running out along dir.</summary>
-    private static void Ramp(Transform parent, Vector3 top, Vector3 dir, float width, float angle)
+    /// <summary>A walkable slope from y = bottom (default ground) up to <paramref name="top"/>, running out along dir.</summary>
+    private static void Ramp(Transform parent, Vector3 top, Vector3 dir, float width, float angle, float bottom = 0f)
     {
-        float h = top.y;
+        float h = top.y - bottom;
         float rad = angle * Mathf.Deg2Rad;
         float run = h / Mathf.Tan(rad), length = h / Mathf.Sin(rad);
         const float thick = 0.4f;

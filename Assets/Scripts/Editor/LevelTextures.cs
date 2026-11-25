@@ -19,6 +19,8 @@ public static class LevelTextures
         string n = name.ToLowerInvariant();
         string kind; float scale;
         if (n.Contains("portal") || n.Contains("beacon") || n.Contains("gate.") || n.Contains("areagate")) return false;
+        if (n.Contains("bookshelf")) { kind = "Books"; scale = 2f; }
+        else
         if (n.Contains("grass") || n.Contains("ground") || n.Contains("field")) { kind = "Grass"; scale = 6f; }
         else if (n.Contains("cliff") || n.Contains("dirt")) { kind = "Dirt"; scale = 5f; }
         else if (n.Contains("rock")) { kind = "Rock"; scale = 3f; }
@@ -44,10 +46,10 @@ public static class LevelTextures
         if (existing != null) return existing;
         if (!AssetDatabase.IsValidFolder(Dir.TrimEnd('/'))) AssetDatabase.CreateFolder("Assets/Materials/Levels", "Textures");
 
-        var pixels = new Color[Size * Size];
+        var pixels = kind == "Books" ? BookSpines() : new Color[Size * Size];
         var rng = new System.Random(kind.GetHashCode());
         float ox = (float)rng.NextDouble() * 100f, oy = (float)rng.NextDouble() * 100f;
-        for (int y = 0; y < Size; y++)
+        for (int y = 0; y < Size && kind != "Books"; y++)
             for (int x = 0; x < Size; x++)
             {
                 float u = (float)x / Size, v = (float)y / Size;
@@ -64,6 +66,51 @@ public static class LevelTextures
         importer.filterMode = FilterMode.Bilinear;
         importer.SaveAndReimport();
         return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+    }
+
+    // Full-colour bookshelf face (the material stays white): two 1 m shelves per tile, each a dark
+    // board with a row of book spines of random width, height and colour standing on it.
+    // Tiles 2 m in the triplanar shader, so shelves line up across every bookcase (v = world height).
+    private static Color[] BookSpines()
+    {
+        var px = new Color[Size * Size];
+        var rng = new System.Random(1999);
+        Color[] palette =
+        {
+            new Color(0.45f, 0.1f, 0.1f), new Color(0.12f, 0.28f, 0.16f), new Color(0.13f, 0.18f, 0.38f),
+            new Color(0.42f, 0.27f, 0.12f), new Color(0.55f, 0.42f, 0.18f), new Color(0.3f, 0.12f, 0.3f),
+            new Color(0.2f, 0.13f, 0.08f), new Color(0.6f, 0.55f, 0.45f),
+        };
+        Color board = new Color(0.22f, 0.13f, 0.07f), back = new Color(0.07f, 0.045f, 0.03f);
+        const int shelf = Size / 2, boardH = 14;
+        for (int s = 0; s < 2; s++)
+        {
+            int y0 = s * shelf;
+            for (int y = y0; y < y0 + boardH; y++)
+                for (int x = 0; x < Size; x++) px[y * Size + x] = board * (y == y0 + boardH - 1 ? 1.3f : 1f);
+            for (int y = y0 + boardH; y < y0 + shelf; y++)
+                for (int x = 0; x < Size; x++) px[y * Size + x] = back;
+            int bx = 0;
+            while (bx < Size)
+            {
+                int w = Mathf.Min(rng.Next(5, 13), Size - bx);
+                int h = (int)((shelf - boardH - 6) * (0.65f + (float)rng.NextDouble() * 0.33f));
+                Color c = palette[rng.Next(palette.Length)] * (0.8f + (float)rng.NextDouble() * 0.4f);
+                int band = rng.Next(h / 5, h * 4 / 5);   // a gold band across the spine
+                for (int x = bx; x < bx + w; x++)
+                {
+                    float edge = (x == bx || x == bx + w - 1) ? 0.6f : 1f;
+                    for (int y = 0; y < h; y++)
+                    {
+                        Color col = Mathf.Abs(y - band) < 2 && w > 6 ? new Color(0.75f, 0.6f, 0.25f) : c;
+                        px[(y0 + boardH + y) * Size + x] = col * edge;
+                    }
+                }
+                bx += w + (rng.NextDouble() < 0.12 ? rng.Next(2, 8) : 0);   // the odd gap
+            }
+        }
+        for (int i = 0; i < px.Length; i++) px[i].a = 1f;
+        return px;
     }
 
     private static Color Grey(float g) { g = Mathf.Clamp01(g); return new Color(g, g, g); }

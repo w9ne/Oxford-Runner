@@ -56,6 +56,16 @@ public class LevelManager : MonoBehaviour
     [SerializeField] private bool spawnAllAtOnce = true;
     [Tooltip("Never put more than this many enemies on one spawn point.")]
     [SerializeField] private int maxPerSpawnPoint = 3;
+    [Tooltip("Commanders per area (-1 = automatic: 1 with 4+ enemies, 2 with 9+).")]
+    [SerializeField] private int commandersPerArea = -1;
+    [Tooltip("Share of the non-commander enemies that are skeletons (the rest are mages).")]
+    [Range(0f, 1f)] [SerializeField] private float skeletonShare = 0.5f;
+    [Header("Garrison (placed enemies) stand out: bigger, with a glowing aura")]
+    [SerializeField] private GameObject garrisonAura;
+    [Tooltip("Additive material for the halo and the beam above each garrison enemy.")]
+    [SerializeField] private Material garrisonGlowMaterial;
+    [SerializeField] private float garrisonScale = 1.35f;
+    [SerializeField] private Color garrisonGlow = new Color(1f, 0.35f, 0.2f);
     [SerializeField] private List<Encounter> encounters = new List<Encounter>();
 
     /// <summary>Used by the editor level builders to wire a generated level.</summary>
@@ -104,11 +114,13 @@ public class LevelManager : MonoBehaviour
                 if (g != null)
                 {
                     e.alive.Add(g);
+                    MarkGarrison(g);
                     if (i > 0) g.gameObject.SetActive(false);   // asleep until the area unlocks
                 }
             foreach (var gate in e.gates) if (gate != null) gate.SetActive(true);
         }
 
+        gameObject.AddComponent<StyleMeter>();
         BuildHud();
         bannerUntil = Time.time + 4f;
     }
@@ -154,6 +166,8 @@ public class LevelManager : MonoBehaviour
     {
         var door = gate.GetComponent<GateDoor>();
         if (door != null) { door.Open(); yield break; }
+        var lowered = gate.GetComponent<DescendOnOpen>();
+        if (lowered != null) { lowered.Open(); yield break; }
         foreach (var c in gate.GetComponentsInChildren<Collider>()) c.enabled = false;
         Transform t = gate.transform;
         Vector3 start = t.position, scale = t.localScale;
@@ -194,14 +208,58 @@ public class LevelManager : MonoBehaviour
         e.wavesDone = true;
     }
 
-    // Split evenly, favouring skeletons; the last 1 (4+ enemies) or 2 (9+ enemies) are commanders.
+    // Skeletons and mages mixed by skeletonShare (skeleton first); the last few are commanders.
     private Enemy PickType(int index, int total)
     {
-        int commanders = total >= 9 ? 2 : total >= 4 ? 1 : 0;
+        int commanders = commandersPerArea >= 0 ? Mathf.Min(commandersPerArea, total) : total >= 9 ? 2 : total >= 4 ? 1 : 0;
         Enemy pick;
         if (index >= total - commanders) pick = commanderPrefab;
-        else pick = index % 2 == 0 ? skeletonPrefab : magePrefab;
+        else
+        {
+            float mage = 1f - skeletonShare;   // a mage each time the running mage count ticks over
+            pick = Mathf.FloorToInt((index + 1) * mage + 0.0001f) > Mathf.FloorToInt(index * mage + 0.0001f) ? magePrefab : skeletonPrefab;
+        }
         return pick != null ? pick : enemyPrefab;
+    }
+
+    // Garrison enemies are the ones players lose track of: make them bigger and give them a glow you can spot from afar.
+    private void MarkGarrison(Enemy g)
+    {
+        g.transform.localScale *= garrisonScale;
+        if (garrisonAura != null)
+        {
+            var fx = Instantiate(garrisonAura, g.transform);
+            fx.transform.localPosition = Vector3.up * 1f;
+            foreach (var c in fx.GetComponentsInChildren<Collider>()) Destroy(c);
+        }
+        if (garrisonGlowMaterial != null)
+        {
+            GlowPart(g.transform, PrimitiveType.Sphere, new Vector3(0f, 1f, 0f), new Vector3(2.2f, 2.6f, 2.2f));
+            GlowPart(g.transform, PrimitiveType.Cylinder, new Vector3(0f, 16f, 0f), new Vector3(0.35f, 15f, 0.35f));   // beam: spot them across the map
+        }
+        var light = new GameObject("GarrisonGlow").AddComponent<Light>();
+        light.transform.SetParent(g.transform, false);
+        light.transform.localPosition = Vector3.up * 1.5f;
+        light.type = LightType.Point;
+        light.color = garrisonGlow;
+        light.range = 7f;
+        light.intensity = 3f;
+        light.renderMode = LightRenderMode.ForcePixel;
+    }
+
+    private void GlowPart(Transform parent, PrimitiveType shape, Vector3 localPos, Vector3 worldSize)
+    {
+        var part = GameObject.CreatePrimitive(shape);
+        part.name = "GarrisonGlow_" + shape;
+        Destroy(part.GetComponent<Collider>());
+        part.transform.SetParent(parent, false);
+        part.transform.localPosition = localPos;
+        Vector3 ps = parent.lossyScale;
+        part.transform.localScale = new Vector3(worldSize.x / ps.x, worldSize.y / ps.y, worldSize.z / ps.z);
+        var r = part.GetComponent<MeshRenderer>();
+        r.sharedMaterial = garrisonGlowMaterial;
+        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        r.receiveShadows = false;
     }
 
     private void Spawn(Encounter e, Wave wave, int index, Enemy prefab)

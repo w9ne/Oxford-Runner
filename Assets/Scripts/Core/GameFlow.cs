@@ -17,8 +17,8 @@ public static class GameSettings
 }
 
 /// <summary>
-/// Which scenes follow which. "Play" runs the campaign: Tutorial -> Level 1 -> Level 2 -> (Level 3 and the
-/// boss later) -> main menu. "Tutorial" runs the tutorial alone and returns to the main menu.
+/// Which scenes follow which. "Play" runs the campaign: Tutorial -> Level 1 -> Level 2 -> Level 3 (library,
+/// ends in the boss) -> main menu. "Tutorial" runs the tutorial alone and returns to the main menu.
 /// Player health is carried from one level to the next.
 /// </summary>
 public static class GameFlow
@@ -28,9 +28,10 @@ public static class GameFlow
     public const string SandboxScene = "MovementTest";
     public const string Level1Scene = "Level1";
     public const string Level2Scene = "Level2";
+    public const string Level3Scene = "Level3";
 
-    /// <summary>Campaign order. Add Level3 / the boss here when they exist.</summary>
-    public static readonly string[] Campaign = { TutorialScene, Level1Scene, Level2Scene };
+    /// <summary>Campaign order.</summary>
+    public static readonly string[] Campaign = { TutorialScene, Level1Scene, Level2Scene, Level3Scene };
 
     /// <summary>Health to restore when the next level starts (-1 = start at full).</summary>
     public static float CarriedHealth { get; set; } = -1f;
