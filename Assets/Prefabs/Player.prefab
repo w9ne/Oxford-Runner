@@ -1510,7 +1510,8 @@ MonoBehaviour:
   missCooldown: 2
   barrierVfx: {fileID: 3635322054298679631, guid: 19d3bd9f2405f2aa8b2f41f290f9cac4, type: 3}
   parryVfx: {fileID: 2212971595031767833, guid: 59eb7e93bb04276a4b949c56b2ee64e2, type: 3}
-  barrierRadius: 1.1
+  reflectedImpactVfx: {fileID: 5811748921172096916, guid: fb351ede86e68c1ea964cda2d37cee33, type: 3}
+  barrierRadius: 1.8
   chestDrop: 0.35
   reflectAssistAngle: 25
   barrierVfxOffset: {x: 0, y: -0.6, z: 0.9}

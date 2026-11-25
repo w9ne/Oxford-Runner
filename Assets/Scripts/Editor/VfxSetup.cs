@@ -84,6 +84,7 @@ public static class VfxSetup
                 var so = new SerializedObject(parry);
                 so.FindProperty("barrierVfx").objectReferenceValue = shield;
                 so.FindProperty("parryVfx").objectReferenceValue = parryHit;
+                so.FindProperty("reflectedImpactVfx").objectReferenceValue = fireHit;   // parried bolts explode like a fireball
                 so.ApplyModifiedPropertiesWithoutUndo();
                 PrefabUtility.SaveAsPrefabAsset(player, "Assets/Prefabs/Player.prefab");
             }

@@ -7,6 +7,7 @@ using UnityEngine;
 /// Number keys 1-9 or the mouse wheel select among unlocked spells (spells unlock per stage later via UnlockNext()).
 /// Draws the crosshair and a spell hotbar (bottom centre) showing each spell's cooldown.
 /// </summary>
+[DefaultExecutionOrder(50)]   // casts in LateUpdate after the camera has turned this frame, so shots match the crosshair
 public class SpellCaster : MonoBehaviour
 {
     [SerializeField] private List<Spell> spells = new List<Spell>();
@@ -27,6 +28,7 @@ public class SpellCaster : MonoBehaviour
     private GUIStyle switchStyle;
     private Spell windingSpell;
     private float windEnd;
+    private Spell pendingRelease;
 
     /// <summary>True while a spell with a cast time is winding up.</summary>
     public bool IsCasting => windingSpell != null && Time.time < windEnd;
@@ -56,6 +58,20 @@ public class SpellCaster : MonoBehaviour
         if (selected >= UnlockedCount) selected = 0;
         if (selected != shownSelected) { shownSelected = selected; switchedAt = Time.unscaledTime; SpellSelected?.Invoke(selected); }
 
+    }
+
+    // Aim is read here, not in Update: the controller applies this frame's mouse look in its LateUpdate,
+    // so casting in Update would fire along last frame's view and miss the crosshair while turning.
+    private void LateUpdate()
+    {
+        if (pendingRelease != null)
+        {
+            var spell = pendingRelease;
+            pendingRelease = null;
+            windingSpell = null;
+            Vector3 origin = castPoint.position;
+            spell.Cast(this, origin, AimDirection(origin));
+        }
         if (Cursor.lockState != CursorLockMode.Locked || GameFlow.Paused) return;   // first click just re-locks the cursor
         if (Input.GetMouseButton(0)) TryCast();
     }
@@ -88,9 +104,7 @@ public class SpellCaster : MonoBehaviour
     private System.Collections.IEnumerator Release(Spell spell)
     {
         yield return new WaitForSeconds(spell.castTime);
-        windingSpell = null;
-        Vector3 origin = castPoint.position;
-        spell.Cast(this, origin, AimDirection(origin));
+        pendingRelease = spell;   // fired in LateUpdate with this frame's aim
     }
 
     private Vector3 AimDirection(Vector3 origin) => Aim.DirectionFrom(origin, aimCamera, transform, maxAimDistance);

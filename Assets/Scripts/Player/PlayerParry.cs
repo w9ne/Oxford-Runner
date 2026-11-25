@@ -10,6 +10,7 @@ using UnityEngine;
 /// A barrier that catches nothing puts parry on cooldown; a successful parry has no cooldown.
 /// </summary>
 [RequireComponent(typeof(FirstPersonController))]
+[DefaultExecutionOrder(-50)]   // read the click before projectiles move this frame
 public class PlayerParry : MonoBehaviour
 {
     /// <summary>The player's parry (one player per scene). Projectiles test against its barrier.</summary>
@@ -23,9 +24,10 @@ public class PlayerParry : MonoBehaviour
     [Header("Effects (Hovl, set by Oxford Runner/Setup Spell VFX)")]
     [SerializeField] private GameObject barrierVfx;      // shield shown while the barrier is up
     [SerializeField] private GameObject parryVfx;        // burst where a bolt got parried
+    [SerializeField] private GameObject reflectedImpactVfx;   // explosion when a parried bolt hits something
 
     [Header("Barrier (enemy bolts that enter this sphere while it is up get reflected)")]
-    [SerializeField] private float barrierRadius = 1.1f;
+    [SerializeField] private float barrierRadius = 1.8f;
     [Tooltip("Barrier centre, measured down from the camera.")]
     [SerializeField] private float chestDrop = 0.35f;
     [Tooltip("Reflected bolts fly at the enemy closest to the crosshair within this many degrees.")]
@@ -142,7 +144,7 @@ public class PlayerParry : MonoBehaviour
         Vector3 dir = Aim.DirectionFrom(contactPoint, view, transform);
         Enemy aimed = EnemyInCrosshair();
         if (aimed != null) dir = (aimed.VisualBounds.center - contactPoint).normalized;
-        projectile.Reflect(contactPoint, dir, transform, Faction.Player, speedMultiplier, damageMultiplier, reflectedTint);
+        projectile.Reflect(contactPoint, dir, transform, Faction.Player, speedMultiplier, damageMultiplier, reflectedTint, reflectedImpactVfx);
         if (aimed != null) projectile.ForceTarget(aimed);   // home in on it even if it moves
 
         caughtThisWindow++;
@@ -195,7 +197,7 @@ public class PlayerParry : MonoBehaviour
         float t = Mathf.Clamp01((Time.time - openedAt) / window);
         float pop = t < 0.2f ? Mathf.Lerp(0.6f, 1.05f, t / 0.2f) : Mathf.Lerp(1.05f, 1f, (t - 0.2f) / 0.8f);
         // A flattened shell on the front of the barrier sphere, just under the eye line.
-        barrierVisual.localPosition = new Vector3(0f, -chestDrop * 0.5f, barrierRadius * 0.8f);
+        barrierVisual.localPosition = new Vector3(0f, -chestDrop * 0.5f, 0.9f);   // fixed, so a bigger catch radius doesn't push the shell away
         barrierVisual.localScale = new Vector3(1.7f, 1.3f, 0.25f) * pop;
         float alpha = flashing ? 0.7f : Mathf.Lerp(barrierColor.a, barrierColor.a * 0.4f, t);
         barrierMaterial.color = flashing ? new Color(1f, 1f, 1f, alpha) : new Color(barrierColor.r, barrierColor.g, barrierColor.b, alpha);

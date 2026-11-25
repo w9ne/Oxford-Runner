@@ -37,6 +37,7 @@ public class SpellProjectile : MonoBehaviour
     public float ImpactRadius { get; private set; }
     public float HitRadius { get; private set; }
     public bool Parryable { get; private set; }
+    private GameObject impactOverride;
     public bool WasReflected { get; private set; }
 
     private void OnEnable() => active.Add(this);
@@ -129,14 +130,15 @@ public class SpellProjectile : MonoBehaviour
     /// can't be parried again, and gets a speed / damage boost plus a colour change.
     /// </summary>
     public void Reflect(Vector3 position, Vector3 direction, Transform newOwner, Faction newFaction,
-                        float speedMultiplier, float damageMultiplier, Color tint)
+                        float speedMultiplier, float damageMultiplier, Color tint, GameObject impactVfx = null)
     {
+        if (impactVfx != null) impactOverride = impactVfx;   // parried bolts blow up instead of fizzling
         transform.SetPositionAndRotation(position, Quaternion.LookRotation(direction));
         owner = newOwner;
         Faction = newFaction;
         Speed *= speedMultiplier;
         Damage *= damageMultiplier;
-        ImpactRadius *= 1.25f;
+        ImpactRadius = Mathf.Max(ImpactRadius * 1.25f, 2.5f);   // a real blast
         Parryable = false;
         WasReflected = true;
         homingTarget = null;
@@ -287,9 +289,10 @@ public class SpellProjectile : MonoBehaviour
 
     private void SpawnImpactVfx(Vector3 point, Vector3 normal)
     {
-        if (spell.impactVfx == null) return;
-        var fx = Instantiate(spell.impactVfx, point + normal * 0.1f, Quaternion.identity);
-        Destroy(fx, spell.impactVfxLifetime);
+        var prefab = impactOverride != null ? impactOverride : spell.impactVfx;
+        if (prefab == null) return;
+        var fx = Instantiate(prefab, point + normal * 0.1f, Quaternion.identity);
+        Destroy(fx, impactOverride != null ? 3.5f : spell.impactVfxLifetime);
     }
 
     private void DealAreaDamage(Vector3 point)

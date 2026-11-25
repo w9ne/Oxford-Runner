@@ -7,7 +7,9 @@ using UnityEngine.UI;
 ///  - health bar (bottom left) with a trailing "damage" bar,
 ///  - parry meter under the crosshair (white = ready, cyan = window open, grey filling = cooldown),
 ///  - red screen flash when hurt, cyan flash + "PARRY!" pop on a successful parry.
+/// Runs after the player controller so the parry cue uses this frame's camera.
 /// </summary>
+[DefaultExecutionOrder(100)]
 public class PlayerHUD : MonoBehaviour
 {
     [SerializeField] private PlayerHealth health;
@@ -25,6 +27,7 @@ public class PlayerHUD : MonoBehaviour
 
     private RectTransform healthFill, healthTrail, parryFill, cueRoot;
     private Image[] cueBrackets;
+    private Vector2[] cueBracketHome;   // bracket positions at spread 1
     private Text cueText;
     private Image parryFillImage, flash;
     private Text healthText, parryText, popText;
@@ -88,19 +91,18 @@ public class PlayerHUD : MonoBehaviour
         flash.color = new Color(flashColor.r, flashColor.g, flashColor.b, flashAlpha);
     }
 
-    // A purple square box with "PARRY" on top locks onto the nearest enemy shot flying at you.
-    // It just marks the shot (no timing guide): raise the barrier so the shot collides with it.
-    // Cyan while the barrier is up, grey while parry is on cooldown.
-    // LateUpdate so the box uses this frame's bolt position (bolts move in Update), led slightly
-    // ahead of the bolt so it never trails behind it.
-    private const float CueLead = 0.05f;   // seconds of bolt travel the box sits ahead
+    // Purple [ ] brackets with "PARRY" on top lock onto the nearest enemy shot flying at you.
+    // They close in as the shot arrives and turn cyan once it will reach the barrier within the
+    // barrier's open time: press then. Cyan while the barrier is up, grey while parry is on cooldown.
+    // LateUpdate (after the camera moved, see DefaultExecutionOrder) with the bolt's own position.
+    private const float CueCloseTime = 0.6f;   // seconds before "press now" that the brackets start closing
     private void LateUpdate() => UpdateCue();
 
     private void UpdateCue()
     {
         SpellProjectile shot = parry != null ? IncomingShot() : null;
         if (cam == null) cam = Camera.main;
-        Vector3 sp = shot != null && cam != null ? cam.WorldToScreenPoint(shot.transform.position + shot.transform.forward * shot.Speed * CueLead) : Vector3.back;
+        Vector3 sp = shot != null && cam != null ? cam.WorldToScreenPoint(shot.transform.position) : Vector3.back;
         bool show = shot != null && sp.z > 0.1f;
         cueRoot.gameObject.SetActive(show);
         if (!show) return;
@@ -109,7 +111,15 @@ public class PlayerHUD : MonoBehaviour
         float scale = Mathf.Clamp(8f / sp.z, 0.7f, 1.8f);
         cueRoot.localScale = Vector3.one * scale;
 
-        Color c = parry.WindowOpen ? WindowColor : parry.OnCooldown ? CooldownColor : CueColor;
+        // Time until the shot reaches the barrier sphere.
+        float gap = Vector3.Distance(shot.transform.position, parry.BarrierCenter) - parry.BarrierRadius;
+        float timeToImpact = Mathf.Max(0f, gap) / Mathf.Max(0.01f, shot.Speed);
+        bool pressNow = timeToImpact <= parry.WindowDuration;
+        float spread = Mathf.Lerp(0.6f, 1.6f, Mathf.Clamp01((timeToImpact - parry.WindowDuration) / CueCloseTime));
+        for (int i = 0; i < cueBrackets.Length; i++)
+            cueBrackets[i].rectTransform.anchoredPosition = cueBracketHome[i] * spread;
+
+        Color c = parry.WindowOpen || (pressNow && parry.Ready) ? WindowColor : parry.OnCooldown ? CooldownColor : CueColor;
         foreach (var b in cueBrackets) b.color = c;
         cueText.color = c;
         cueText.text = "PARRY";
@@ -199,6 +209,7 @@ public class PlayerHUD : MonoBehaviour
         cueRoot.anchorMin = cueRoot.anchorMax = new Vector2(0.5f, 0.5f);
         cueRoot.sizeDelta = new Vector2(60f, 60f);
         cueBrackets = new Image[8];
+        cueBracketHome = new Vector2[8];
         int k = 0;
         for (int sx = -1; sx <= 1; sx += 2)
         for (int sy = -1; sy <= 1; sy += 2)
@@ -206,7 +217,9 @@ public class PlayerHUD : MonoBehaviour
             // Each corner is an L made of a horizontal and a vertical bar.
             var h = Rect(cueRoot, "H", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(sx * 22f, sy * 30f), new Vector2(16f, 4f), CueColor);
             var v = Rect(cueRoot, "V", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(sx * 30f, sy * 22f), new Vector2(4f, 16f), CueColor);
+            cueBracketHome[k] = h.rectTransform.anchoredPosition;
             cueBrackets[k++] = h;
+            cueBracketHome[k] = v.rectTransform.anchoredPosition;
             cueBrackets[k++] = v;
         }
         cueText = Label(cueRoot, "CueText", font, 20, CueColor, TextAnchor.MiddleCenter, new Vector2(0f, 48f), new Vector2(160f, 26f), new Vector2(0.5f, 0.5f));
