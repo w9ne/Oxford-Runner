@@ -44,7 +44,9 @@ public class PlayerParry : MonoBehaviour
 
     [Header("Reward / Feel")]
     [SerializeField] private float healOnParry = 10f;
-    [SerializeField] private float hitStopDuration = 0.07f;      // real-time seconds
+    [Tooltip("On: time stops dead for hitStopDuration (ULTRAKILL style). Off: old slow-mo at hitStopTimeScale.")]
+    [SerializeField] private bool freezeFrame = true;
+    [SerializeField] private float hitStopDuration = 0.08f;      // real-time seconds
     [SerializeField, Range(0f, 1f)] private float hitStopTimeScale = 0.05f;
 
     /// <summary>Right click pressed and the barrier went up.</summary>
@@ -161,9 +163,9 @@ public class PlayerParry : MonoBehaviour
     {
         hitStopping = true;
         float previous = Time.timeScale;
-        Time.timeScale = hitStopTimeScale;
+        Time.timeScale = freezeFrame ? 0f : hitStopTimeScale;
         yield return new WaitForSecondsRealtime(hitStopDuration);
-        Time.timeScale = previous <= hitStopTimeScale ? 1f : previous;
+        if (!GameFlow.Paused) Time.timeScale = previous <= hitStopTimeScale ? 1f : previous;   // paused meanwhile: the menu owns time
         hitStopping = false;
     }
 

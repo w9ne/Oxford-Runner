@@ -46,7 +46,7 @@ public class MissileLockOn : MonoBehaviour
             Vector3 c = e.VisualBounds.center;
             Vector3 to = c - eye;
             if (to.magnitude > spell.lockRange || Vector3.Dot(to, fwd) <= 0f) continue;
-            if (!Clear(eye, c, e.transform)) continue;
+            if (!Targeting.Clear(eye, c, e.transform, transform)) continue;
             visible.Add(e);
             float angle = Vector3.Angle(fwd, to);
             if (angle < bestAngle) { bestAngle = angle; best = e; }
@@ -62,12 +62,6 @@ public class MissileLockOn : MonoBehaviour
             if (progress >= 1f) { locked = best; candidate = null; progress = 0f; }
         }
         else { candidate = null; progress = 0f; }
-    }
-
-    private bool Clear(Vector3 from, Vector3 to, Transform enemy)
-    {
-        if (!Physics.Linecast(from, to, out RaycastHit hit, ~0, QueryTriggerInteraction.Ignore)) return true;
-        return hit.collider.transform.IsChildOf(enemy) || hit.collider.transform.IsChildOf(transform);
     }
 
     private void OnGUI()

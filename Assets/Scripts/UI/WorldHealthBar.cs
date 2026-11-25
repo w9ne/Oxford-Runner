@@ -5,6 +5,7 @@ using UnityEngine;
 /// Reads any <see cref="IHealthReadout"/> on the same object (enemies, training dummies).
 /// Built from three unlit quads at runtime, so it needs no prefab or canvas:
 /// dark background, a yellow "recent damage" trail that drains behind the red fill, and the fill itself.
+/// Enemies also get a "FROZEN" / "STUNNED" label above the bar.
 /// </summary>
 public class WorldHealthBar : MonoBehaviour
 {
@@ -23,6 +24,8 @@ public class WorldHealthBar : MonoBehaviour
     private Transform root, fill, trail;
     private float heightAboveOrigin, trailValue = 1f;
     private Camera cam;
+    private Enemy enemy;
+    private TextMesh status;
 
     private void Start()
     {
@@ -45,6 +48,19 @@ public class WorldHealthBar : MonoBehaviour
         Quad("Back", backColor, 0f, 1f + 0.06f / width, 1f + 0.06f / height, 0);
         trail = Quad("Trail", trailColor, -0.001f, 1f, 1f, 1);
         fill = Quad("Fill", fillColor, -0.002f, 1f, 1f, 2);
+        enemy = target as Enemy;
+        if (enemy != null)
+        {
+            status = new GameObject("Status").AddComponent<TextMesh>();
+            status.transform.SetParent(root, false);
+            status.transform.localPosition = new Vector3(0f, 0.32f, 0f);
+            status.anchor = TextAnchor.MiddleCenter;
+            status.fontSize = 64;
+            status.characterSize = 0.05f;
+            status.fontStyle = FontStyle.Bold;
+            status.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            status.GetComponent<MeshRenderer>().sharedMaterial = status.font.material;
+        }
         LateUpdate();
     }
 
@@ -92,6 +108,11 @@ public class WorldHealthBar : MonoBehaviour
         trailValue = h > trailValue ? h : Mathf.MoveTowards(trailValue, h, Time.deltaTime * 0.8f);
         fill.localScale = new Vector3(Mathf.Max(h, 0.0001f), 1f, 1f);
         trail.localScale = new Vector3(Mathf.Max(trailValue, 0.0001f), 1f, 1f);
+        if (status != null)
+        {
+            status.text = enemy.IsFrozen ? "FROZEN" : enemy.IsStunned ? "STUNNED" : "";
+            status.color = enemy.IsFrozen ? new Color(0.7f, 0.95f, 1f) : new Color(1f, 0.9f, 0.3f);
+        }
 
         // Undo the parent's scale (dummies pop by scaling) and face the camera.
         Vector3 ps = transform.lossyScale;

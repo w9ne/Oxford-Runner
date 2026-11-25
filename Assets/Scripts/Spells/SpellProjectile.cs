@@ -16,7 +16,7 @@ public class SpellProjectile : MonoBehaviour
 
     private static readonly HashSet<SpellProjectile> active = new HashSet<SpellProjectile>();
     private static readonly RaycastHit[] hitBuffer = new RaycastHit[16];
-    private static readonly Collider[] overlapBuffer = new Collider[32];
+    private static readonly Collider[] overlapBuffer = new Collider[1024];   // level geometry fills it too
 
     /// <summary>All projectiles currently in flight (used by the parry to find incoming shots).</summary>
     public static IReadOnlyCollection<SpellProjectile> Active => active;
@@ -28,7 +28,7 @@ public class SpellProjectile : MonoBehaviour
     private int piercesLeft;
     private readonly HashSet<IDamageable> pierced = new HashSet<IDamageable>();
     private IDamageable homingTarget;
-    private float launchTime;
+    private float launchTime, nextPickTime;
     private IDamageable lockedTarget;   // missile lock-on: chases this one anywhere, through cover
 
     public Faction Faction { get; private set; }
@@ -95,6 +95,9 @@ public class SpellProjectile : MonoBehaviour
         if (homingTarget == null || (Component)homingTarget == null || homingTarget.IsDead)
         {
             lockedTarget = null;   // target gone: back to normal homing (and normal collisions)
+            homingTarget = null;
+            if (Time.time < nextPickTime) return;   // the search scans every collider in range: not every frame
+            nextPickTime = Time.time + 0.25f;
             homingTarget = PickHomingTarget();
             if (homingTarget == null) return;
         }
@@ -221,7 +224,7 @@ public class SpellProjectile : MonoBehaviour
     }
 
     // Does the segment start + dir * [0, length] enter the sphere? Returns the entry point.
-    private static bool HitsSphere(Vector3 start, Vector3 dir, float length, Vector3 center, float radius, out Vector3 point)
+    public static bool HitsSphere(Vector3 start, Vector3 dir, float length, Vector3 center, float radius, out Vector3 point)
     {
         point = start;
         Vector3 m = start - center;

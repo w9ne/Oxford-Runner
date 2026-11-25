@@ -15,12 +15,7 @@ public static partial class LevelBuilder
 
     public static DungeonMats TutorialMaterials()
     {
-        runeMat = Mat("TUT_RuneGlow", new Color(0.3f, 0.9f, 1f));
-        runeMat.EnableKeyword("_EMISSION");
-        runeMat.SetColor("_EmissionColor", new Color(0.15f, 0.7f, 1f) * 1.5f);
-        runeMat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
-        EditorUtility.SetDirty(runeMat);
-        AssetDatabase.SaveAssetIfDirty(runeMat);
+        RuneMat();
         return new DungeonMats
         {
             platform = Mat("TUT_PlatformRock", new Color(0.46f, 0.43f, 0.4f)),
@@ -119,6 +114,61 @@ public static partial class LevelBuilder
         }
         PointLight(wall.transform.parent, name + "_Glow", center + Vector3.up * size.y * 0.2f, new Color(0.3f, 0.85f, 1f), 9f, 0.8f, false, 0f);
         return wall;
+    }
+
+    // glow 1.5 = the tutorial's runes; dimmer levels get their own material so the tutorial is untouched.
+    private static Material RuneMat(float glow = 1.5f)
+    {
+        runeMat = glow >= 1.5f ? Mat("TUT_RuneGlow", new Color(0.3f, 0.9f, 1f)) : Mat("RuneGlow_Dim", new Color(0.12f, 0.4f, 0.48f));
+        runeMat.EnableKeyword("_EMISSION");
+        runeMat.SetColor("_EmissionColor", new Color(0.15f, 0.7f, 1f) * glow);
+        runeMat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+        runeMat.enableInstancing = true;   // hundreds of identical strips per level
+        EditorUtility.SetDirty(runeMat);
+        AssetDatabase.SaveAssetIfDirty(runeMat);
+        return runeMat;
+    }
+
+    /// <summary>
+    /// Tutorial-style rune strips on every WallRun-tagged cube under root (bands top and bottom, diamonds at the
+    /// middle), so wall-runnable surfaces read the same in every level. Faces pressed against something get none.
+    /// Re-runnable: replaces the "RuneTrim" group. Safe on hand-edited scenes (only adds that group).
+    /// </summary>
+    public static void RuneTrim(Transform root, float glow = 1.5f)
+    {
+        var old = root.Find("RuneTrim");
+        if (old != null) Object.DestroyImmediate(old.gameObject);
+        RuneMat(glow);
+        Physics.SyncTransforms();
+        var g = Graybox.Group(root, "RuneTrim");
+        foreach (var t in root.GetComponentsInChildren<Transform>())
+        {
+            if (!t.CompareTag(Graybox.WallRunTag)) continue;
+            var mf = t.GetComponent<MeshFilter>();
+            if (mf == null || mf.sharedMesh == null || mf.sharedMesh.name != "Cube") continue;
+            Vector3 s = t.lossyScale;
+            bool thinX = s.x <= s.z;
+            Vector3 thin = thinX ? Vector3.right : Vector3.forward, along = thinX ? Vector3.forward : Vector3.right;
+            float L = thinX ? s.z : s.x, H = s.y, half = (thinX ? s.x : s.z) * 0.5f + 0.03f;
+            Quaternion rollQ = Quaternion.AngleAxis(45f, thin);
+            foreach (int side in new[] { -1, 1 })
+            {
+                Vector3 n = t.rotation * thin * side, face = t.position + n * half;
+                if (Physics.Raycast(face - n * 0.02f, n, 0.3f, ~0, QueryTriggerInteraction.Ignore)) continue;   // flush against a wall
+                foreach (float y in new[] { -0.4f, 0.4f })
+                    RuneStrip(g, face + t.rotation * (Vector3.up * y * H), t.rotation, thin * 0.06f + Vector3.up * 0.3f + along * L * 0.96f);
+                for (float a = -L * 0.5f + 1.5f; a <= L * 0.5f - 1.4f; a += 2.5f)
+                    RuneStrip(g, face + t.rotation * (along * a), t.rotation * rollQ, thin * 0.06f + (Vector3.up + along) * 0.45f);
+            }
+        }
+    }
+
+    private static void RuneStrip(Transform g, Vector3 pos, Quaternion rot, Vector3 size)
+    {
+        var bit = Graybox.Box(g, "Rune", pos, size, runeMat);
+        bit.transform.rotation = rot;
+        Object.DestroyImmediate(bit.GetComponent<Collider>());
+        bit.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
     }
 
     private static void RuneBit(Transform parent, string name, Vector3 pos, Vector3 size, float roll)

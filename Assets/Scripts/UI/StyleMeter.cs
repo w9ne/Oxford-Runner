@@ -6,7 +6,7 @@ using UnityEngine.UI;
 /// DMC / ULTRAKILL style rank. Hits, kills, combos (hitting frozen / stunned enemies), airshots and parries
 /// fill the meter and climb the ranks D..SSS; taking damage knocks it down, dying resets it, and doing nothing
 /// for 5 s drains it. Every gain also adds to the level score (times the rank multiplier). Each level starts
-/// fresh at rank D with 0 points; the best score per level is saved.
+/// fresh at rank D with 0 points; the best score per level is saved, but only once the level is cleared.
 /// Added at runtime by LevelManager, so every campaign level has one.
 /// </summary>
 public class StyleMeter : MonoBehaviour
@@ -17,11 +17,15 @@ public class StyleMeter : MonoBehaviour
     public static string BestKey(string scene) => "BestScore_" + scene;
     public int Score { get; private set; }
     private string bestKey;
+    private int savedBest, shownScore = -1;
+    /// <summary>Best score saved before this run (the results screen shows "NEW BEST").</summary>
+    public int SavedBest => savedBest;
+    private bool cleared;
 
-    private static readonly string[] Letters = { "D", "C", "B", "A", "S", "SS", "SSS" };
-    private static readonly string[] Names =
+    public static readonly string[] Letters = { "D", "C", "B", "A", "S", "SS", "SSS" };
+    public static readonly string[] Names =
         { "DECENT", "CAST MASTER", "BATTLE MAGE", "2ND RATE MAGE", "SORCERER", "SLINGING SORCERER", "SUPREME SPELLSLINGING SOVEREIGN" };
-    private static readonly Color[] Colors =
+    public static readonly Color[] Colors =
     {
         new Color(0.6f, 0.75f, 1f), new Color(0.4f, 1f, 0.6f), new Color(1f, 0.9f, 0.3f), new Color(1f, 0.6f, 0.2f),
         new Color(1f, 0.25f, 0.25f), new Color(1f, 0.3f, 0.8f), new Color(0.85f, 0.5f, 1f),
@@ -40,7 +44,7 @@ public class StyleMeter : MonoBehaviour
     private float lastGain = -99f;
     private float rankPop;                   // 1 on rank change, eases to 0
 
-    private class Line { public string text; public int count; public float time; public Color color; }
+    private class Line { public string text, label; public int count, shown; public float time; public Color color; }
     private readonly List<Line> feed = new List<Line>();   // newest first, max 3
 
     private Text letter, rankName, scoreText, bestText;
@@ -51,11 +55,14 @@ public class StyleMeter : MonoBehaviour
     {
         Instance = this;
         bestKey = BestKey(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
+        savedBest = PlayerPrefs.GetInt(bestKey, 0);
         BuildUi();
     }
 
     private void Start()
     {
+        var level = GetComponent<LevelManager>();
+        if (level != null) { cleared = level.Cleared; level.LevelCleared += () => cleared = true; }
         var p = GameObject.FindGameObjectWithTag("Player");
         if (p == null) return;
         var health = p.GetComponent<PlayerHealth>();
@@ -71,7 +78,7 @@ public class StyleMeter : MonoBehaviour
     private void OnDestroy()
     {
         if (Instance == this) Instance = null;
-        SaveBest();
+        if (cleared) SaveBest();   // quitting mid-level doesn't count
     }
 
     // ------------------------------------------------------------ events
@@ -132,7 +139,7 @@ public class StyleMeter : MonoBehaviour
 
     private void SaveBest()
     {
-        if (Score > PlayerPrefs.GetInt(bestKey, 0))
+        if (Score > savedBest)
         {
             PlayerPrefs.SetInt(bestKey, Score);
             PlayerPrefs.Save();
@@ -161,14 +168,19 @@ public class StyleMeter : MonoBehaviour
         barFill.rectTransform.anchorMax = new Vector2(fill, 1f);
         barFill.color = c;
 
-        scoreText.text = Score.ToString("N0");
-        bestText.text = "BEST " + Mathf.Max(Score, PlayerPrefs.GetInt(bestKey, 0)).ToString("N0");
+        if (Score != shownScore)   // strings only when it changes
+        {
+            shownScore = Score;
+            scoreText.text = Score.ToString("N0");
+            bestText.text = "BEST " + Mathf.Max(Score, savedBest).ToString("N0");
+        }
 
         for (int i = 0; i < feedTexts.Length; i++)
         {
             if (i >= feed.Count) { feedTexts[i].text = ""; continue; }
             var l = feed[i];
-            feedTexts[i].text = l.count > 1 ? l.text + "  x" + l.count : l.text;
+            if (l.shown != l.count) { l.shown = l.count; l.label = l.count > 1 ? l.text + "  x" + l.count : l.text; }   // build once per change
+            feedTexts[i].text = l.label;
             float age = Time.time - l.time;
             var col = l.color;
             col.a = Mathf.Clamp01(3f - age) * (i == 0 ? 1f : 0.7f);   // fade out after ~2 s

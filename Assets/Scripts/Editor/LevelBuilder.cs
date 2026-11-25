@@ -74,7 +74,7 @@ public static partial class LevelBuilder
         Cubby(b, new Vector3(15f, 0f, 45f), 200f, stoneMat);
         Cubby(b, new Vector3(-12f, 0f, 40f), 160f, stoneMat);
         Encounter("Meadow", b, new Vector3(0f, 0f, 58f), new Vector2(50f, 50f), bGarrison,
-                  new[] { new Vector3(-18f, 0f, 78f), new Vector3(18f, 0f, 42f), new Vector3(-9f, 0f, 81f), new Vector3(-20f, 0f, 38f) },
+                  new[] { new Vector3(-18f, 0f, 76f), new Vector3(18f, 0f, 42f), new Vector3(-9f, 0f, 77f), new Vector3(-19f, 0f, 40f) },
                   Wave(3, 50f, 3.5f, 3f), Wave(4, 50f, 3.6f, 2.8f));
 
         // --- Pit 2 (20 m): long wall on the left with a small rest pillar mid-way.
@@ -102,8 +102,8 @@ public static partial class LevelBuilder
         Rock(c, new Vector3(-6f, 0f, 145f), new Vector3(2.5f, 2f, 2.5f), -10f);
         Rock(c, new Vector3(20f, 0f, 106f), new Vector3(2f, 1.8f, 3f), 60f);
         Rock(c, new Vector3(-12f, 0f, 158f), new Vector3(3f, 1.5f, 2f), 0f);
-        WallRunCorridor(c, new Vector3(-26f, 0f, 140f), 14f, 5f, 7f, 0f);
-        WallRunCorridor(c, new Vector3(24f, 0f, 108f), 12f, 5f, 6f, 90f);
+        WallRunCorridor(c, new Vector3(-23.5f, 0f, 140f), 14f, 5f, 7f, 0f);   // inside the fence (x -27.5)
+        WallRunCorridor(c, new Vector3(21f, 0f, 112.5f), 12f, 5f, 6f, 90f);
         LowBeam(c, new Vector3(-4f, 0f, 128f), 6f, 0f);
         LowBeam(c, new Vector3(16f, 0f, 132f), 6f, 90f);
         SlideTunnel(c, new Vector3(11f, 0f, 156f), 8f, 4f, 0f);       // slide out to pit 3
@@ -111,7 +111,7 @@ public static partial class LevelBuilder
         Cubby(c, new Vector3(6f, 0f, 141f), 180f, stoneMat);
         Cubby(c, new Vector3(-18f, 0f, 124f), 200f, stoneMat);
         var hills = Encounter("Hills", c, new Vector3(0f, 0f, 133f), new Vector2(60f, 60f), cGarrison,
-                  new[] { new Vector3(-25f, 0f, 160f), new Vector3(25f, 0f, 160f), new Vector3(-26f, 0f, 125f), new Vector3(26f, 0f, 140f) },
+                  new[] { new Vector3(-22f, 0f, 155f), new Vector3(22f, 0f, 155f), new Vector3(-23f, 0f, 125f), new Vector3(23f, 0f, 140f) },   // >= 2.5 m inside the fence
                   Wave(3, 55f, 3.8f, 2.8f), Wave(4, 55f, 3.8f, 2.6f), Wave(5, 60f, 4f, 2.5f));
         hills.gates.Add(AreaGate(Group("Gate_MeadowToHills"), 84f, 80f));     // across the far edge of the meadow
 
@@ -132,7 +132,7 @@ public static partial class LevelBuilder
         Cubby(d, new Vector3(-8f, 0f, 190f), 180f, stoneMat);
         Cubby(d, new Vector3(9f, 0f, 209f), 180f, stoneMat);
         var gateArea = Encounter("Gate", d, new Vector3(0f, 0f, 203f), new Vector2(30f, 30f), dGarrison,
-                  new[] { new Vector3(-12f, 0f, 214f), new Vector3(12f, 0f, 214f) },
+                  new[] { new Vector3(-8f, 0f, 211f), new Vector3(8f, 0f, 204f) },   // inside the fence (x +-12.5, z 215.5)
                   Wave(4, 60f, 4f, 2.4f));
         gateArea.gates.Add(AreaGate(Group("Gate_HillsToGate"), 164f, 90f));  // across the far edge of the hills
         var portal = Portal(d, new Vector3(0f, 0f, 213f), 0f);
@@ -224,11 +224,8 @@ public static partial class LevelBuilder
         var door2 = GatedWall(w2, 136f, halfW, gateWidth: 12f, height: 12f);
 
         var k = Group("C_KeepApproach");
-        var kGarrison = new List<Enemy>
-        {
-            WatchTower(k, new Vector3(-30f, 0f, 176f), 2.6f, 13f),
-            WatchTower(k, new Vector3(30f, 0f, 176f), 2.6f, 13f),
-        };
+        foreach (int sx in new[] { -1, 1 }) Object.DestroyImmediate(WatchTower(k, new Vector3(sx * 30f, 0f, 176f), 2.6f, 13f).gameObject);   // lookout only
+        var kGarrison = new List<Enemy>();
         RoundTower(k, new Vector3(-16f, 0f, 150f), 3f, 14f);
         RoundTower(k, new Vector3(16f, 0f, 150f), 3f, 14f);
         RoundTower(k, new Vector3(-42f, 0f, 160f), 3.5f, 12f);
@@ -241,6 +238,7 @@ public static partial class LevelBuilder
         Barricade(k, new Vector3(0f, 0f, 156f), 0f);
         ConnectWall(k, new Vector3(-16f, 0f, 150f), new Vector3(-42f, 0f, 160f), 8f);
         ConnectWall(k, new Vector3(16f, 0f, 150f), new Vector3(42f, 0f, 160f), 8f);
+        foreach (int sx in new[] { -1, 1 }) kGarrison.AddRange(FiringSquad(k, new Vector3(sx * 16f, 0f, 150f), new Vector3(sx * 42f, 0f, 160f), 8f));
         LowBeam(k, new Vector3(0f, 0f, 174f), 8f, 0f, woodMat);
         Level2Palisades(k);
         var keep = Encounter("Keep Approach", k, new Vector3(0f, 0f, 165f), new Vector2(halfW * 2f, 56f), kGarrison,
@@ -255,7 +253,7 @@ public static partial class LevelBuilder
                                   new Vector3(-2f, 0f, 169f), new Vector3(-31f, 0f, 148f), new Vector3(26f, 0f, 148f) })
             Cubby(cub, c, 180f, stoneMat);
         var portal = Portal(k, new Vector3(0f, 0f, 184f), 0f);
-        Level2Trees(grounds);
+        Level2Dressing(root);
 
         Finish("Level 2 - Castle Grounds", new Vector3(0f, 0f, -8f), 0f, portal, killY: -12f, killCenterZ: 90f);
     }
@@ -322,19 +320,6 @@ public static partial class LevelBuilder
         Palisade(g, new Vector3(0f, 0f, 159f), 10f, 0f);
     }
 
-    /// <summary>Big trees and a grass apron outside the curtain walls (out of reach, background only).</summary>
-    public static void Level2Trees(Transform parent)
-    {
-        var g = Graybox.Group(parent, "Scenery_Trees");
-        Box(g, "OuterGround", new Vector3(0f, -0.6f, 90f), new Vector3(500f, 1f, 600f), groundMat);
-        var rng = new System.Random(20261124);
-        float R(float a, float b) => a + (float)rng.NextDouble() * (b - a);
-        string[] kinds = { SNP + "Tree_01.prefab", SNP + "Tree_03.prefab", SNP + "Tree_04.prefab", SNP + "Tree_05.prefab", Nature + "Vegetation/Trees/rpgpp_lt_tree_01.prefab", Nature + "Vegetation/Trees/rpgpp_lt_tree_pine_01.prefab" };
-        void Tree(Vector3 p) { string k = kinds[rng.Next(kinds.Length)]; Prop(g, k, p, R(0f, 360f), k.Contains("rpgpp") ? R(2f, 3f) : R(3f, 4.5f)); }
-        for (int i = 0; i < 48; i++) Tree(new Vector3((i % 2 == 0 ? -1f : 1f) * R(68f, 140f), 0f, R(-40f, 220f)));   // both sides
-        for (int i = 0; i < 16; i++) Tree(new Vector3(R(-120f, 120f), 0f, R(-80f, -26f)));                            // behind the start
-    }
-
     /// <summary>
     /// Walkable rampart: a 4 m thick wall (front face wall-runnable) with merlons along the front edge and a
     /// low rail along the back. Runs along local X; at yaw 0 the front faces -z. Optional arch through the
@@ -390,6 +375,10 @@ public static partial class LevelBuilder
             return false;
         }
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return false;
+        // Level 1 and 2 are hand-edited: rebuilding throws those edits away.
+        if ((sceneName == "Level1" || sceneName == "Level2") && System.IO.File.Exists($"Assets/Scenes/{sceneName}.unity")
+            && !EditorUtility.DisplayDialog("Build " + label, $"{sceneName} has hand edits. Rebuilding overwrites them.", "Overwrite", "Cancel"))
+            return false;
         if (!AssetDatabase.IsValidFolder("Assets/Materials/Levels")) AssetDatabase.CreateFolder("Assets/Materials", "Levels");
 
         scenePath = $"Assets/Scenes/{sceneName}.unity";
@@ -403,9 +392,10 @@ public static partial class LevelBuilder
         return true;
     }
 
-    private static void Finish(string levelName, Vector3 start, float yaw, GameObject portal, float killY, float killCenterZ)
+    private static void Finish(string levelName, Vector3 start, float yaw, GameObject portal, float killY, float killCenterZ, float runeGlow = 1.5f)
     {
         var scene = EditorSceneManager.GetActiveScene();
+        RuneTrim(root, runeGlow);
 
         var startT = new GameObject("PlayerStart").transform;
         startT.SetParent(root, false);
@@ -436,7 +426,7 @@ public static partial class LevelBuilder
         if (list.Any(s => s.path == path)) return;
         // Keep the campaign order: insert after the last existing campaign scene.
         list.Add(new EditorBuildSettingsScene(path, true));
-        string[] order = { "MainMenu", "Tutorial", "Level1", "Level2", "Level3", "MovementTest" };
+        string[] order = { "MainMenu", "Tutorial", "Level1", "Level2", "Level3" };
         list = list.OrderBy(s =>
         {
             int i = System.Array.IndexOf(order, System.IO.Path.GetFileNameWithoutExtension(s.path));
@@ -688,24 +678,12 @@ public static partial class LevelBuilder
 
     // ================================================================== encounters
     private static LevelManager.Wave Wave(int count, float health, float speed, float interval) =>
-        new LevelManager.Wave { enemyCount = count, enemyHealth = health, enemySpeed = speed, enemyFireInterval = interval, spawnInterval = 0.8f };
+        new LevelManager.Wave { enemyCount = count, enemyHealth = health, enemySpeed = speed, enemyFireInterval = interval };
 
     private static LevelManager.Encounter Encounter(string name, Transform parent, Vector3 center, Vector2 size, List<Enemy> garrison,
                                   Vector3[] spawns, params LevelManager.Wave[] waves)
     {
-        var spawnRoot = Graybox.Group(parent, "SpawnPoints");
-        var points = new Transform[spawns.Length];
-        for (int i = 0; i < spawns.Length; i++)
-        {
-            var t = new GameObject($"Spawn_{i + 1}").transform;
-            t.SetParent(spawnRoot, false);
-            t.position = spawns[i] + Vector3.up * 1.05f;
-            Vector3 look = center - spawns[i]; look.y = 0f;
-            t.rotation = Quaternion.LookRotation(look.sqrMagnitude > 0.01f ? look : Vector3.back);
-            points[i] = t;
-            // A dark pad shows where enemies come from.
-            Box(spawnRoot, $"SpawnPad_{i + 1}", spawns[i] + Vector3.up * 0.03f, new Vector3(2.4f, 0.06f, 2.4f), Graybox.Enemy);
-        }
+        var points = SpawnPoints(parent, "SpawnPoints", center, spawns);
         var e = new LevelManager.Encounter
         {
             name = name,
@@ -716,6 +694,24 @@ public static partial class LevelBuilder
         };
         encounters.Add(e);
         return e;
+    }
+
+    /// <summary>Spawn points (facing the area centre), each marked with a dark pad.</summary>
+    private static Transform[] SpawnPoints(Transform parent, string rootName, Vector3 center, Vector3[] spawns)
+    {
+        var spawnRoot = Graybox.Group(parent, rootName);
+        var points = new Transform[spawns.Length];
+        for (int i = 0; i < spawns.Length; i++)
+        {
+            var t = new GameObject($"Spawn_{i + 1}").transform;
+            t.SetParent(spawnRoot, false);
+            t.position = spawns[i] + Vector3.up * 1.05f;
+            Vector3 look = center - spawns[i]; look.y = 0f;
+            t.rotation = Quaternion.LookRotation(look.sqrMagnitude > 0.01f ? look : Vector3.back);
+            points[i] = t;
+            Box(spawnRoot, $"SpawnPad_{i + 1}", spawns[i] + Vector3.up * 0.03f, new Vector3(2.4f, 0.06f, 2.4f), Graybox.Enemy);
+        }
+        return points;
     }
 
     /// <summary>
@@ -754,9 +750,9 @@ public static partial class LevelBuilder
         go.name = "GarrisonCaster";
         go.transform.position = floor + Vector3.up * 1.02f;
         var so = new SerializedObject(go.GetComponent<Enemy>());
-        so.FindProperty("maxHealth").floatValue = 20f;
+        so.FindProperty("maxHealth").floatValue = 1f;     // one hit
         so.FindProperty("moveSpeed").floatValue = 0f;
-        so.FindProperty("fireInterval").floatValue = 3.4f;
+        so.FindProperty("fireInterval").floatValue = 2f;
         so.FindProperty("attackRange").floatValue = 42f;
         so.ApplyModifiedPropertiesWithoutUndo();
         go.GetComponent<Rigidbody>().isKinematic = true;
@@ -961,6 +957,19 @@ public static partial class LevelBuilder
         Vector3 d = b - a; d.y = 0f;
         float yaw = Quaternion.LookRotation(d).eulerAngles.y;
         Box(parent, "LinkWall", (a + b) * 0.5f + Vector3.up * (height * 0.5f), new Vector3(0.6f, height, d.magnitude), wallRunMat, true, yaw);
+    }
+
+    /// <summary>A walk on top of a ConnectWall from a to b, with four casters lined up along it close together
+    /// (a firing squad either side of the centre barricade). Returns the casters.</summary>
+    public static List<Enemy> FiringSquad(Transform parent, Vector3 a, Vector3 b, float height)
+    {
+        var g = Graybox.Group(parent, "FiringSquad");
+        Vector3 d = b - a; d.y = 0f;
+        float yaw = Quaternion.LookRotation(d).eulerAngles.y;
+        Box(g, "Walk", (a + b) * 0.5f + Vector3.up * (height + 0.2f), new Vector3(2f, 0.4f, d.magnitude), stoneMat, false, yaw);
+        var squad = new List<Enemy>();
+        for (int i = 0; i < 4; i++) squad.Add(Garrison(g, Vector3.Lerp(a, b, 0.25f + i * 0.14f) + Vector3.up * (height + 0.4f)));
+        return squad;
     }
 
     /// <summary>Wooden barricade: chest-high wall of planks with two braces. Enemies hide behind these.</summary>

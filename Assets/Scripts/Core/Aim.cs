@@ -10,10 +10,14 @@ public static class Aim
     /// Falls back to a point maxDistance along the view if nothing is hit.
     /// </summary>
     public static Vector3 PointUnderCrosshair(Transform view, Transform ignoreRoot, float maxDistance, out float distance)
+        => PointUnderCrosshair(view.position, view.forward, ignoreRoot, maxDistance, out distance);
+
+    /// <summary>First point hit along a ray, ignoring <paramref name="ignoreRoot"/>; distance = maxDistance if none.</summary>
+    public static Vector3 PointUnderCrosshair(Vector3 origin, Vector3 dir, Transform ignoreRoot, float maxDistance, out float distance)
     {
-        Vector3 target = view.position + view.forward * maxDistance;
+        Vector3 target = origin + dir * maxDistance;
         distance = maxDistance;
-        int count = Physics.RaycastNonAlloc(view.position, view.forward, hits, maxDistance, ~0, QueryTriggerInteraction.Ignore);
+        int count = Physics.RaycastNonAlloc(origin, dir, hits, maxDistance, ~0, QueryTriggerInteraction.Ignore);
         for (int i = 0; i < count; i++)
         {
             var h = hits[i];

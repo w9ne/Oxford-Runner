@@ -2,9 +2,6 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>What an enemy is. Each kind is its own prefab (see EnemySetup) with tuned fields.</summary>
-public enum EnemyKind { Caster, Skeleton, Mage, Commander }
-
 /// <summary>
 /// Enemy AI, Rigidbody-driven. One script, several kinds (set up per prefab):
 ///  - Caster    : the original: walks in to a stopping distance and fires telegraphed bolts.
@@ -25,7 +22,6 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
     public static readonly List<Enemy> All = new List<Enemy>();
 
     [Header("Type")]
-    [SerializeField] private EnemyKind kind = EnemyKind.Caster;
     [Tooltip("Multipliers applied to the wave's health / speed / fire interval when spawned.")]
     [SerializeField] private float healthScale = 1f;
     [SerializeField] private float speedScale = 1f;
@@ -69,10 +65,8 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
 
     public event Action<Enemy> Died;
 
-    public EnemyKind Kind => kind;
     public float Health { get; private set; }
     public float MaxHealth => maxHealth;
-    public float FireInterval => fireInterval;
     public bool IsDead { get; private set; }
     public Faction Faction => Faction.Enemy;
 
@@ -110,7 +104,6 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
     private float frozenUntil;
     private bool frozenApplied;
     private RigidbodyConstraints savedConstraints;
-    private GUIStyle frozenStyle;
 
     /// <summary>Frozen solid (Frost Lance): can't move, turn or cast, and takes extra damage.</summary>
     public bool IsFrozen => Time.time < frozenUntil;
@@ -527,25 +520,6 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
         rb.constraints = savedConstraints;
         frozenApplied = false;
         nextShotTime = Mathf.Max(nextShotTime, Time.time + 0.5f);
-    }
-
-    // "FROZEN" / "STUNNED" over the enemy's head.
-    private void OnGUI()
-    {
-        string status = IsFrozen ? "FROZEN" : IsStunned ? "STUNNED" : null;
-        if (status == null || IsDead) return;
-        var cam = Camera.main;
-        if (cam == null) return;
-        Vector3 sp = cam.WorldToScreenPoint(transform.position + Vector3.up * 2.9f);
-        if (sp.z <= 0f) return;
-        float ui = Screen.height / 1080f;
-        if (frozenStyle == null) frozenStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
-        frozenStyle.fontSize = Mathf.RoundToInt(Mathf.Clamp(260f / sp.z, 16f, 34f) * ui);
-        var r = new Rect(sp.x - 120f * ui, Screen.height - sp.y - 20f * ui, 240f * ui, 40f * ui);
-        frozenStyle.normal.textColor = new Color(0f, 0.1f, 0.25f, 0.85f);
-        GUI.Label(new Rect(r.x + 2f, r.y + 2f, r.width, r.height), status, frozenStyle);
-        frozenStyle.normal.textColor = IsFrozen ? new Color(0.7f, 0.95f, 1f) : new Color(1f, 0.9f, 0.3f);
-        GUI.Label(r, status, frozenStyle);
     }
 
     public void TakeDamage(float amount)

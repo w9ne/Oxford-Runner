@@ -31,7 +31,6 @@ public static class EnemySetup
         Make(SkeletonPath, root =>
         {
             var so = Fields(root);
-            so.FindProperty("kind").enumValueIndex = (int)EnemyKind.Skeleton;
             so.FindProperty("healthScale").floatValue = 0.5f;
             so.FindProperty("speedScale").floatValue = 1.6f;
             so.FindProperty("intervalScale").floatValue = 1f;
@@ -58,7 +57,6 @@ public static class EnemySetup
         Make(MagePath, root =>
         {
             var so = Fields(root);
-            so.FindProperty("kind").enumValueIndex = (int)EnemyKind.Mage;
             so.FindProperty("healthScale").floatValue = 0.4f;
             so.FindProperty("speedScale").floatValue = 1f;
             so.FindProperty("intervalScale").floatValue = 1f;
@@ -77,7 +75,6 @@ public static class EnemySetup
         {
             root.transform.localScale = Vector3.one * 1.6f;   // shortcut: graybox commander, swap for a real model later
             var so = Fields(root);
-            so.FindProperty("kind").enumValueIndex = (int)EnemyKind.Commander;
             so.FindProperty("healthScale").floatValue = 2.5f;
             so.FindProperty("speedScale").floatValue = 1.5f;
             so.FindProperty("intervalScale").floatValue = 0.55f;   // fires about twice as often

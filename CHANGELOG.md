@@ -1,5 +1,90 @@
 # Oxford Runner: Development Log
 
+## 2026-11-24 (rune walls, 1 HP casters, firing squad)
+
+- Every wall-runnable surface in Levels 1-3 gets tutorial rune strips (glow bands + diamonds): `LevelBuilder.RuneTrim`,
+  run by `Finish` on build, patched in place into Level1/Level2. Faces pressed against a wall are skipped.
+  Level 3 uses a dim copy (`RuneGlow_Dim`, glow 0.5 vs 1.5) so the dark library is not glaring.
+- Floating mages glide (SmoothDamp, speed 5) and only pick spots with a clear path. Area 1 wander 4 to 7 m.
+- All mages in Level 3 (balcony too) and all garrison casters: 1 HP. Garrison fire interval 3.4 to 2 s.
+- Level 2 area 3: lookout casters removed; firing squads of 4 on a walk atop each link wall either side of the
+  centre barricade (8 casters, ~3.9 m apart).
+- Removed the unused `EnemyKind` enum/field (compiler warning).
+
+## 2026-11-24 (audit fixes)
+
+- Parry hit-stop now freezes time dead for 0.08 s (ULTRAKILL style). `PlayerParry.freezeFrame` off = old slow-mo.
+  New `HitStopStarted` event = hook for the parry SFX.
+- Pausing during the hit-stop no longer unpauses the game. Jump/dash pressed while paused no longer fire on resume.
+- Targeting and blast buffers 64/32 to 1024: missiles home properly in Level 3 (~700 colliders in 50 m).
+- "Build Level 1/2" asks before overwriting the hand-edited scenes.
+- Level 2 plants: prefab copies with GPU instancing instead of merged meshes. Level2.unity 64 MB to 10 MB.
+  Old Scenery_Trees folded into the dressing Forest.
+- FROZEN/STUNNED label moved from per-enemy OnGUI to a TextMesh on the health bar.
+- StyleMeter: best score read once, score text rebuilt only on change.
+- Removed: wave-by-wave spawning (never used), lightning legacy fields, `Enemy.Kind`/`FireInterval`, `Level2Trees`.
+- First EditMode test: `Editor/Tests/GameFlowTests` (campaign order). Passes.
+
+## 2026-11-24 (later): Level 3 cleanup, ways up, moving mages, door torches, unloading; project cleanup
+
+### Level 3
+- Less clutter, still messy:
+  - Floor books cut by more than half on both floors (ground 900 to 380, hall 700 to 280).
+  - Rubble 160 to 70, scorch marks 60 to 35.
+  - Fewer stacks and tables in the Upper Hall.
+- The grand staircase landing is 2 m tall (was 3 m), so a double jump gets you onto it.
+- New ways up to the balcony:
+  - A wall-jump shaft on each side: two bookcases 3.5 m apart out to the balcony edge.
+  - Broken-bookcase steps on each side, a double jump apart.
+  - The railing has gaps at each of these.
+- Floating mages drift around (`Hover.wander`) and have 1 HP. The Upper Hall now has 6 (was 2), plus 2 balcony mages.
+- Two giant braziers stand either side of the metal door (new `Ignite` component). They are unlit until the hall
+  is cleared, then burst into low-poly flame and sparks with a bright light flash.
+- Unloading (new `unloadOnEnter` on LevelManager areas):
+  - Entering the Upper Hall shuts the hatch, then destroys the whole ground floor.
+  - Walking through the metal door swings it shut behind you (new `GateDoor.Close`), then destroys the Upper Hall.
+  - Each unload is followed by `Resources.UnloadUnusedAssets`. Area 3 has its own checkpoint.
+- Fixed the L3_Flame material losing its glow (emission keyword wasn't saved).
+
+### Cleanup
+- Removed missing-script components from the Blue Olive candle prefabs (the "Point Light script missing" warnings).
+- Deleted the old MovementTest sandbox scene, `GameManager` (its old wave spawner) and `ArenaBuilder`, along with every
+  reference to them.
+  - Removed it from the build list, which was also out of order: a build would have booted into the Tutorial. MainMenu is first again.
+- Deleted unused Graybox materials and their dead accessors, and the leftover Assets/Screenshots folder.
+
+## 2026-11-24: Level 3 area 2 (Upper Hall), Level 2 dressing, Level 1 wall fix
+
+### Level 3: Upper Hall (`Scripts/Editor/LevelBuilder.Library2.cs`, scene rebuilt)
+- Two storeys: the hall floor (y 13) and a U-shaped balcony (y 19) along both side walls and the back.
+  A grand staircase leads up the middle: a central flight to a landing, then a flight to each side balcony.
+  Hidden ramps along the step noses carry the player.
+- When you step off the spiral stairs (z > 70), the area starts. Two hatch halves slide shut over the
+  stair hole, the staircase hides, and a checkpoint is set at the top of the stairs.
+  - New per-area `closeOnEnter` and `checkpoint` fields on LevelManager.
+  - New `SlideShut` component.
+- The hall is wrecked:
+  - The front of the hall (z < 50) has caved in.
+  - Bookcases are toppled, leaning or broken. Two fallen bookcases are walkable ramps up to the balcony.
+  - A chandelier has crashed down, and tables are overturned.
+  - The balcony railing is broken in places.
+  - There is rubble, soot, a torn runner and books on both floors (merged into a few meshes).
+  - Torches flicker and dust hangs in the air.
+- Enemies: 2 floating mages, 2 balcony mages, and waves of 6 + 7 spawning on both floors.
+- A giant riveted metal door in the back wall at balcony level. It opens when the hall is cleared.
+  Behind it is a short corridor with the exit portal: area 3 ("Sealed Door"), where the boss room will go.
+- `MergeByMaterial` now uses only LOD0 of props that have LODs.
+
+### Level 2 (patched in place, `Scripts/Editor/LevelBuilder.Castle.cs`)
+- 42 wall torches: curtain walls, both faces of the gate walls, the start wall and the castle wall.
+- Wooden doors with stone frames at the foot of every round tower, a great door in the keep, and two posterns by the start.
+- Grass clumps and flower patches across the open ground, thicker along the wall bases. Merged; about 590k verts.
+- 170 more trees outside the walls (big ones close in, so they show over the walls).
+- Removed two leftover screenshot cameras from the scene.
+
+### Level 1
+- Two Hills wall-run corridors were outside or on the fence line. They have been moved inside (scene and builder).
+
 ## 2026-11-23 (late night): New hero, Greenland dressing, Hovl VFX
 
 ### Player (`Oxford Runner → Setup Player Body`, `Scripts/Player/PlayerBody.cs`)
@@ -411,3 +496,54 @@ adds health + parry + HUD to the Player prefab.
 - LevelManager: `commandersPerArea`, `skeletonShare`. Level 2: 1 commander per area, 70% skeletons, waves 5+6 / 5+6+6 / 6+7,
   4 per spawn point. Garrison enemies (all levels) are 1.35x bigger with a Hovl Buff aura, an orange light, an additive
   halo and a tall beam (`GarrisonGlow.mat`) so the last ones are easy to find. Builder sets this via `SetGarrisonAura`.
+
+## 2026-11-24 — audit fixes
+- GateDoor swings to absolute poses (closed rotation saved in Awake, StopAllCoroutines): Close() mid-open no longer over-rotates (Level 3 metal door).
+- Homing projectiles with no target re-search at most every 0.25 s (was every frame per missile).
+- StyleMeter saves the best score only if the level was cleared (LevelManager.LevelCleared).
+- DescendOnOpen merged into SlideShut (Open() = same one-way slide); Level 3 SpiralStaircase patched in place, builder updated.
+- Reuse: MissileLockOn uses Targeting.Clear; Lightning aim uses Aim.PointUnderCrosshair (new origin/dir overload);
+  PlayerHUD + TutorialManager build UI via MenuUI (Canvas/Rect/Label).
+- Removed dead code: PlayerParry.HitStopStarted, SpellCaster.UnlockNext, PlayerHUD.OnHealed.
+- Perf: SpellCaster hotbar GUIStyles cached; HUD health text only rebuilt on change.
+- Tests: ParrySphereTests (SpellProjectile.HitsSphere now public). EditMode 4/4 pass.
+
+## 2026-11-24 — Level 3 upper hall fixes
+- Hall waves spawn only in front of the grand staircase (floor z 58/84) and on its landing; mages spawn on the balconies
+  (`Encounter.mageSpawnPoints`, filled first, overflow goes to the main points). Spawns behind the staircase removed:
+  skeletons walked straight into it and got stuck underneath.
+- Grand staircase side flights are solid down to the hall floor (no crawl space underneath). Removed the floating-step path.
+- Hall garrison (floating mages) wakes when you walk in at the top, not when area 1 clears (`Encounter.garrisonWakesOnEnter`),
+  so nothing shoots down the stair hole while you climb. Waves already started at the top.
+- Spiral staircase: ramp is 4 short pieces per step sized to the outer edge (no gaps/ledges), plus an invisible
+  outer railing from the 3rd step up.
+- FirstPersonController: walking up a ramp counts as grounded (unless you just jumped). Before, any upward speed meant
+  "in the air": weak air control + extra gravity, which made stairs feel like sliding out. Scripted climb: 347/379 air
+  frames before, 0/374 after.
+- Level 3 rebuilt from the builder (hierarchy diff: only the staircase, spawn points and ramp changed).
+- Debug K (editor/dev builds) kills only the live area's awake enemies; before, it also deleted later areas' sleeping garrisons (Level 3's floating mages).
+- Level 3 Upper Hall waves 6+7 -> 10+12 (22 at once: 10 skeletons, 10 mages, still 2 commanders), plus the 8 floating mages. Spawn capacity: 15 main + 9 balcony slots. Level 3 rebuilt.
+
+## 2026-11-25 — camera judder, Level 1 spawns, level results screen
+- Camera judder while strafing + turning fixed (FirstPersonController): the controller wrote `transform.rotation` every
+  frame, which reset Rigidbody interpolation, so the camera only moved on physics ticks (worst sideways with A/D).
+  Now the camera's world rotation is set per frame from yaw/pitch, the body turns only via `rb.MoveRotation`, and
+  movement / wall checks use the yaw directly (`Forward`/`Right`). Test at 4 Hz physics: per-frame camera speed
+  median 0 (24 m/s jumps) before -> 8.0 m/s every frame after.
+- Level 1 spawn points moved >= 2.5 m inside the fences (Meadow 3, Hills 4, Gate 2), patched in Level1.unity and the
+  builder. LevelManager no longer spreads stacked spawns through walls/fences (linecast, tries 6 directions).
+- Level results screen (`UI/LevelResults.cs`): entering a campaign portal freezes time and shows time, style score
+  counting up and a bar filling D -> rank earned (letter pops per rank), NEW BEST, then click/Space continues.
+  SSS = 8k / 15k / 20k (Level 1/2/3); ranks start at 0/20/35/50/65/80/100 % of that. Pause menu stays shut meanwhile.
+- Tests: LevelResultsTests (rank thresholds). EditMode 5/5.
+
+## 2026-11-25 — pre-alpha perf + movement check
+- Rendering: player camera now uses deferred shading (`Core/DeferredFog.cs` on Player.prefab's camera). Forward
+  rendering drew every mesh again per point light (58 torches/candles in Level 3): ~10,140 draw calls, Camera.Render
+  34 ms with almost no enemies. Deferred: ~1,000 draw calls, 5 ms. 30-enemy Upper Hall fight: whole frame 6.7 ms avg,
+  8.1 ms worst, no spikes. Built-in deferred skips fog on opaque objects, so `Resources/DeferredFog.shader` re-applies
+  the scene's exponential fog from depth (image matches forward within ~0.6% brightness). No MSAA in deferred.
+- Mouse look is applied at the end of FirstPersonController.Update (was LateUpdate), before animation IK, so the
+  hands/book no longer trail the view by a frame. Judder test (4 Hz physics): 0 frozen camera frames of 411.
+- Fewer per-frame strings: LevelManager HUD text and StyleMeter feed lines only rebuilt when they change.
+- Movement smoke test: jump peak 1.31 m, dash 5 m, slide on/off, W/D directions correct.

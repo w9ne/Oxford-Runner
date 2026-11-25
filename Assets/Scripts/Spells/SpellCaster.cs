@@ -4,10 +4,10 @@ using UnityEngine;
 /// <summary>
 /// Lets the player cast spells. Hold Mouse 1 (left click) to cast the selected spell whenever it's off cooldown.
 /// Aims at whatever is under the crosshair, firing from a hand point so shots line up with the screen center.
-/// Number keys 1-9 or the mouse wheel select among unlocked spells (spells unlock per stage later via UnlockNext()).
+/// Number keys 1-9 or the mouse wheel select among unlocked spells.
 /// Draws the crosshair and a spell hotbar (bottom centre) showing each spell's cooldown.
 /// </summary>
-[DefaultExecutionOrder(50)]   // casts in LateUpdate after the camera has turned this frame, so shots match the crosshair
+[DefaultExecutionOrder(50)]   // casts in LateUpdate, after the camera has turned this frame, so shots match the crosshair
 public class SpellCaster : MonoBehaviour
 {
     [SerializeField] private List<Spell> spells = new List<Spell>();
@@ -25,7 +25,7 @@ public class SpellCaster : MonoBehaviour
 
     private int shownSelected;
     private float switchedAt = -10f;
-    private GUIStyle switchStyle;
+    private GUIStyle switchStyle, nameStyle, keyStyle, cdStyle;
     private Spell windingSpell;
     private float windEnd;
     private Spell pendingRelease;
@@ -60,8 +60,8 @@ public class SpellCaster : MonoBehaviour
 
     }
 
-    // Aim is read here, not in Update: the controller applies this frame's mouse look in its LateUpdate,
-    // so casting in Update would fire along last frame's view and miss the crosshair while turning.
+    // Aim is read here, after every Update: the controller applies this frame's mouse look at the end of its
+    // Update, so casting from LateUpdate always fires along this frame's view.
     private void LateUpdate()
     {
         if (pendingRelease != null)
@@ -116,8 +116,6 @@ public class SpellCaster : MonoBehaviour
 
     public void SetCastPoint(Transform point) => castPoint = point != null ? point : aimCamera;
 
-    public void UnlockNext() => unlockedCount = Mathf.Min(unlockedCount + 1, spells.Count);
-
     private void OnGUI()
     {
         if (!showCrosshair || GameFlow.Paused) return;
@@ -158,9 +156,15 @@ public class SpellCaster : MonoBehaviour
         float x0 = (Screen.width - (count * w + (count - 1) * gap)) * 0.5f;
         float y = Screen.height - h - 24f * ui;
 
-        var nameStyle = new GUIStyle(GUI.skin.label) { font = MenuUI.Font, fontSize = Mathf.RoundToInt(28 * ui), alignment = TextAnchor.LowerCenter, fontStyle = FontStyle.Bold };
-        var keyStyle = new GUIStyle(GUI.skin.label) { font = MenuUI.Font, fontSize = Mathf.RoundToInt(22 * ui), alignment = TextAnchor.UpperLeft };
-        var cdStyle = new GUIStyle(GUI.skin.label) { font = MenuUI.Font, fontSize = Mathf.RoundToInt(36 * ui), alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
+        if (nameStyle == null)   // built once: OnGUI runs several times a frame
+        {
+            nameStyle = new GUIStyle(GUI.skin.label) { font = MenuUI.Font, alignment = TextAnchor.LowerCenter, fontStyle = FontStyle.Bold };
+            keyStyle = new GUIStyle(GUI.skin.label) { font = MenuUI.Font, alignment = TextAnchor.UpperLeft };
+            cdStyle = new GUIStyle(GUI.skin.label) { font = MenuUI.Font, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
+        }
+        nameStyle.fontSize = Mathf.RoundToInt(28 * ui);
+        keyStyle.fontSize = Mathf.RoundToInt(22 * ui);
+        cdStyle.fontSize = Mathf.RoundToInt(36 * ui);
 
         for (int i = 0; i < count; i++)
         {

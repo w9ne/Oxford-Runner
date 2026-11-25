@@ -7,8 +7,8 @@ using UnityEngine;
 ///   Area 1 "Ground Floor": spawn at the entrance. Reading tables down the middle, bookcase stacks to wall-run
 ///          on either side (every bookcase is wall-runnable), four floating mages hovering over the stacks,
 ///          and the usual waves. Clearing it lowers a spiral staircase from the floor above into the rotunda.
-///   Area 2 "Upper Floor": placeholder for now (an empty hall with the exit portal). Later: enemies, then a
-///          giant metal door to the boss room.
+///   Area 2 "Upper Hall": see LevelBuilder.Library2.cs (two storeys, grand staircase, wrecked, giant metal door).
+///   Area 3 "Sealed Door": the corridor behind the metal door (placeholder for the boss room) with the exit portal.
 /// Layout: hall x -32..32, z 0..120. Ground floor y 0..12, ceiling slab 12..13 with a 10 m hole over the
 /// rotunda at z 64, upper floor 13..28.
 /// </summary>
@@ -36,6 +36,9 @@ public static partial class LevelBuilder
         flameMat = Mat("L3_Flame", new Color(1f, 0.7f, 0.3f));
         flameMat.EnableKeyword("_EMISSION");
         flameMat.SetColor("_EmissionColor", new Color(1f, 0.6f, 0.2f) * 2f);
+        flameMat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+        EditorUtility.SetDirty(flameMat);
+        AssetDatabase.SaveAssetIfDirty(flameMat);   // or the emission keyword is lost
         Indoors();
 
         var shell = Group("Shell");
@@ -50,26 +53,21 @@ public static partial class LevelBuilder
 
         var garrison = new List<Enemy>
         {
-            FloatingMage(a1, new Vector3(-22f, 9.5f, 30f)),
-            FloatingMage(a1, new Vector3(22f, 9.5f, 38f)),
-            FloatingMage(a1, new Vector3(-22f, 9.5f, 98f)),
-            FloatingMage(a1, new Vector3(22f, 9.5f, 90f)),
+            FloatingMage(a1, new Vector3(-22f, 9.5f, 30f), wander: 7f),
+            FloatingMage(a1, new Vector3(22f, 9.5f, 38f), wander: 7f),
+            FloatingMage(a1, new Vector3(-22f, 9.5f, 98f), wander: 7f),
+            FloatingMage(a1, new Vector3(22f, 9.5f, 90f), wander: 7f),
         };
         Encounter("Ground Floor", a1, new Vector3(0f, 0f, 66f), new Vector2(LibHalfW * 2f, 108f), garrison,
                   new[] { new Vector3(-21f, 0f, 64f), new Vector3(21f, 0f, 64f), new Vector3(-29f, 0f, 110f), new Vector3(29f, 0f, 110f), new Vector3(0f, 0f, 114f) },
                   Wave(5, 60f, 4.2f, 2.4f), Wave(6, 65f, 4.2f, 2.2f));
 
-        // Area 2 (placeholder): the staircase comes down when the ground floor is cleared.
-        var a2 = Group("B_UpperFloor");
+        // Area 2: the staircase comes down when the ground floor is cleared; a hatch shuts over it once you're up.
+        var a2 = Group("B_UpperHall");
         var stairs = SpiralStaircase(a2, new Vector3(0f, 0f, RotundaZ));
-        UpperFloor(a2);
-        var upper = Encounter("Upper Floor", a2, new Vector3(0f, FloorTop, 64f), new Vector2(LibHalfW * 2f, LibLength), new List<Enemy>(),
-                              new Vector3[0]);
-        upper.triggerArea = new Bounds(new Vector3(0f, FloorTop + 7f, 60f), new Vector3(LibHalfW * 2f, 12f, LibLength));   // upstairs only
-        upper.gates.Add(stairs);
-        var portal = Portal(a2, new Vector3(0f, FloorTop, 108f), 180f);
+        var portal = UpperHall(a1, a2, stairs);
 
-        Finish("Level 3 - The Library", new Vector3(0f, 0f, 4f), 0f, portal, killY: -20f, killCenterZ: 60f);
+        Finish("Level 3 - The Library", new Vector3(0f, 0f, 4f), 0f, portal, killY: -20f, killCenterZ: 60f, runeGlow: 0.5f);   // dim: the library is dark, full glow is glaring
     }
 
     // ------------------------------------------------------------------ lighting
@@ -135,12 +133,17 @@ public static partial class LevelBuilder
         for (float x = -LibHalfW; x < LibHalfW; x += 16f)
         {
             Box(g, "Wall", new Vector3(x + 8f, Roof * 0.5f, -1f), new Vector3(16f, Roof + 2f, 2f), stoneMat);
-            Box(g, "Wall", new Vector3(x + 8f, Roof * 0.5f, LibLength + 1f), new Vector3(16f, Roof + 2f, 2f), stoneMat);
         }
+        // Back wall with the doorway to the boss room (x -4..4, from the balcony at y 19 up to 27).
+        for (int s = -1; s <= 1; s += 2)
+            for (int i = 0; i < 2; i++)
+                Box(g, "Wall", new Vector3(s * (4f + 7f + i * 14f), Roof * 0.5f, LibLength + 1f), new Vector3(14f, Roof + 2f, 2f), stoneMat);
+        Box(g, "Wall", new Vector3(0f, (BalconyY - 1f) * 0.5f, LibLength + 1f), new Vector3(8f, BalconyY + 1f, 2f), stoneMat);
+        Box(g, "Wall", new Vector3(0f, (DoorTop + Roof + 1f) * 0.5f, LibLength + 1f), new Vector3(8f, Roof + 1f - DoorTop, 2f), stoneMat);
     }
 
     /// <summary>A bookcase (wall-runnable, books on both long faces) with a wooden cap and end boards. Runs along local X.</summary>
-    private static void Bookcase(Transform parent, Vector3 basePoint, float length, float height, float yaw, float thick = 1f)
+    private static Transform Bookcase(Transform parent, Vector3 basePoint, float length, float height, float yaw, float thick = 1f)
     {
         var b = Graybox.Group(parent, "Bookcase");
         Quaternion r = Quaternion.Euler(0f, yaw, 0f);
@@ -148,6 +151,7 @@ public static partial class LevelBuilder
         Box(b, "Cap", basePoint + Vector3.up * (height + 0.15f), new Vector3(length + 0.3f, 0.3f, thick + 0.3f), shelfWoodMat, false, yaw);
         for (int s = -1; s <= 1; s += 2)
             Box(b, "End", basePoint + r * new Vector3(s * (length * 0.5f + 0.08f), height * 0.5f, 0f), new Vector3(0.16f, height, thick + 0.2f), shelfWoodMat, false, yaw);
+        return b;
     }
 
     // Floor-to-ceiling bookcases along both side walls, split by stone pilasters that carry the torches.
@@ -294,11 +298,11 @@ public static partial class LevelBuilder
         string[] kinds = { Dungeon + "Book_09.prefab", Olive + "Book-closed 10.prefab", Olive + "Book-closed 12.prefab", Olive + "Book-closed 14.prefab", Olive + "Book-open 2.prefab" };
         // Piles: books dumped around a point (where a shelf came down), plus loose ones everywhere.
         var piles = new List<Vector3>();
-        for (int i = 0; i < 45; i++) piles.Add(new Vector3(R(-30f, 30f), 0f, R(12f, 116f)));
-        for (int i = 0; i < 900; i++)
+        for (int i = 0; i < 25; i++) piles.Add(new Vector3(R(-30f, 30f), 0f, R(12f, 116f)));
+        for (int i = 0; i < 380; i++)   // kept light: more reads as clutter
         {
-            var p = i < 540 ? piles[i % piles.Count] + new Vector3(R(-1.6f, 1.6f), 0f, R(-1.6f, 1.6f)) : new Vector3(R(-30f, 30f), 0f, R(10f, 117f));
-            p.y = 0.02f + (i < 540 ? R(0f, 0.25f) : 0f);
+            var p = i < 220 ? piles[i % piles.Count] + new Vector3(R(-1.6f, 1.6f), 0f, R(-1.6f, 1.6f)) : new Vector3(R(-30f, 30f), 0f, R(10f, 117f));
+            p.y = 0.02f + (i < 220 ? R(0f, 0.25f) : 0f);
             if (new Vector2(p.x, p.z - RotundaZ).magnitude < 5.5f) continue;   // stairs land here
             string k = kinds[rng.Next(kinds.Length)];
             var b = Prop(g, k, p, R(0f, 360f), k.Contains("Book_09") ? R(2.6f, 3.4f) : R(1.8f, 2.4f));
@@ -314,10 +318,16 @@ public static partial class LevelBuilder
     private static void MergeByMaterial(Transform g, float bandLength)
     {
         var groups = new Dictionary<(Material, int), List<CombineInstance>>();
+        var lowDetail = new HashSet<Renderer>();   // only LOD0 of LOD'd props, or every LOD level would draw on top of each other
+        foreach (var lg in g.GetComponentsInChildren<LODGroup>())
+        {
+            var lods = lg.GetLODs();
+            for (int i = 1; i < lods.Length; i++) foreach (var r in lods[i].renderers) if (r != null) lowDetail.Add(r);
+        }
         foreach (var mf in g.GetComponentsInChildren<MeshFilter>())
         {
             var mr = mf.GetComponent<MeshRenderer>();
-            if (mr == null || mf.sharedMesh == null) continue;
+            if (mr == null || mf.sharedMesh == null || lowDetail.Contains(mr)) continue;
             int band = Mathf.FloorToInt(mf.transform.position.z / bandLength);
             var mats = mr.sharedMaterials;
             for (int sub = 0; sub < mf.sharedMesh.subMeshCount && sub < mats.Length; sub++)
@@ -376,21 +386,23 @@ public static partial class LevelBuilder
             if (l.GetComponent<LightFlicker>() == null) Object.DestroyImmediate(l);   // keep our own torch / chandelier lights
     }
 
-    /// <summary>A Mage that hangs in the air (kinematic, bobbing) above a glowing circle and shoots from there.</summary>
-    private static Enemy FloatingMage(Transform parent, Vector3 pos)
+    /// <summary>A Mage that floats (kinematic) above a glowing circle, drifting around within wander metres, and
+    /// shoots from there. 1 HP: one hit brings it down. hover = false: a stationary mage standing at pos (feet), also 1 HP.</summary>
+    private static Enemy FloatingMage(Transform parent, Vector3 pos, bool hover = true, float wander = 5f)
     {
         var prefab = EnemySetup.Load(EnemySetup.MagePath);
         var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab.gameObject, parent);
         go.name = "FloatingMage";
         go.transform.position = pos;
         var so = new SerializedObject(go.GetComponent<Enemy>());
-        so.FindProperty("maxHealth").floatValue = 30f;
+        so.FindProperty("maxHealth").floatValue = 1f;
         so.FindProperty("moveSpeed").floatValue = 0f;
         so.FindProperty("fireInterval").floatValue = 2.8f;
         so.FindProperty("attackRange").floatValue = 48f;
         so.ApplyModifiedPropertiesWithoutUndo();
         go.GetComponent<Rigidbody>().isKinematic = true;
-        go.AddComponent<Hover>();
+        if (!hover) { go.name = "BalconyMage"; go.transform.position = pos + Vector3.up * 1.02f; return go.GetComponent<Enemy>(); }
+        go.AddComponent<Hover>().wander = wander;
         var circle = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Hovl Studio/Magic effects pack/Prefabs/Magic circles/Magic circle.prefab");
         if (circle != null)
         {
@@ -405,7 +417,7 @@ public static partial class LevelBuilder
     // ------------------------------------------------------------------ stairs + upper floor
     /// <summary>
     /// Spiral staircase from the rotunda floor up through the ceiling hole to the upper floor. Built in place,
-    /// then parked 13 m up (in the floor above); DescendOnOpen lowers it when area 2 unlocks.
+    /// then parked 13 m up (in the floor above); SlideShut lowers it when area 2 unlocks.
     /// The steps are visual only: a hidden ramp of tilted boxes through the step tops carries the player
     /// (the controller can't climb steps).
     /// </summary>
@@ -433,17 +445,29 @@ public static partial class LevelBuilder
             var post = Box(g, "RailPost", basePoint + dir * (rOut - 0.1f) + Vector3.up * ((i + 1) * rise + 0.5f), new Vector3(0.08f, 1f, 0.08f), ironMat);
             Object.DestroyImmediate(post.GetComponent<Collider>());
         }
-        // Hidden ramp: segment i runs from step i's centre to step i+1's centre (i = -1 starts on the floor).
-        float arc = rMid * turn * Mathf.Deg2Rad, slope = Mathf.Atan2(rise, arc) * Mathf.Rad2Deg;
-        for (int i = -1; i < steps - 1; i++)
+        // Hidden ramp: 4 short tilted boxes per step along the helix (i = -1 starts on the floor). Short pieces
+        // sized to the OUTER edge leave no gaps or ledges there; long ones made the climb bumpy and let you slip off.
+        const int sub = 4;
+        float subTurn = turn / sub, subRise = rise / sub;
+        float slope = Mathf.Atan2(subRise, rMid * subTurn * Mathf.Deg2Rad) * Mathf.Rad2Deg;
+        float pieceLen = 2f * rOut * Mathf.Tan(subTurn * 0.5f * Mathf.Deg2Rad) + 0.1f;
+        for (int k = 0; k < steps * sub; k++)   // from step -1's centre (on the floor) to the top step's centre
         {
-            float a = (i + 1f) * turn;
+            float a = (k + 0.5f) * subTurn - turn * 0.5f;
+            float y = (k + 0.5f) * subRise - 0.1f;
             Vector3 dir = Quaternion.Euler(0f, a, 0f) * Vector3.forward;
             var seg = new GameObject("RampCollider");
             seg.transform.SetParent(g, false);
-            seg.transform.SetPositionAndRotation(basePoint + dir * rMid + Vector3.up * ((i + 1.5f) * rise - 0.1f),
+            seg.transform.SetPositionAndRotation(basePoint + dir * rMid + Vector3.up * y,
                                                  Quaternion.Euler(0f, a + 90f, 0f) * Quaternion.Euler(-slope, 0f, 0f));
-            seg.AddComponent<BoxCollider>().size = new Vector3(rOut - rIn, 0.2f, arc + 0.15f);   // x radial, z along the turn
+            seg.AddComponent<BoxCollider>().size = new Vector3(rOut - rIn, 0.2f, pieceLen);   // x radial, z along the turn
+            // Invisible railing on the outer edge, so you can't slide off the side (from the 3rd step up, so you
+            // can still step on from the floor).
+            if (k < sub * 3) continue;
+            var guard = new GameObject("RailGuard");
+            guard.transform.SetParent(g, false);
+            guard.transform.SetPositionAndRotation(basePoint + dir * (rOut + 0.05f) + Vector3.up * (y + 0.7f), seg.transform.rotation);
+            guard.AddComponent<BoxCollider>().size = new Vector3(0.1f, 1.4f, pieceLen);
         }
         // Landing from the top step onto the upper floor.
         float topA = (steps - 0.5f) * turn;
@@ -452,18 +476,9 @@ public static partial class LevelBuilder
 
         foreach (var t in g.GetComponentsInChildren<Transform>()) t.gameObject.isStatic = false;   // it moves
         g.position += Vector3.up * FloorTop;   // parked in the floor above until area 1 is cleared
-        g.gameObject.AddComponent<DescendOnOpen>().drop = FloorTop;
+        var lower = g.gameObject.AddComponent<SlideShut>();
+        lower.slide = Vector3.down * FloorTop;
+        lower.duration = 5f;
         return g.gameObject;
-    }
-
-    // Upper floor shell for now: torches and two chandeliers so it isn't pitch dark. Area 2 gets built here later.
-    private static void UpperFloor(Transform parent)
-    {
-        var g = Graybox.Group(parent, "UpperShell");
-        for (int s = -1; s <= 1; s += 2)
-            for (float z = 12f; z < LibLength; z += 24f)
-                WallTorch(g, new Vector3(s * (LibHalfW - 0.4f), FloorTop + 4.2f, z), s > 0 ? -90f : 90f);
-        Chandelier(g, new Vector3(0f, FloorTop + 10f, 40f), Roof);
-        Chandelier(g, new Vector3(0f, FloorTop + 10f, 92f), Roof);
     }
 }

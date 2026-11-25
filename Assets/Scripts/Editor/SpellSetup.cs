@@ -9,7 +9,7 @@ using UnityEngine;
 /// Chain Lightning and Arcane Nova use the Kevin Iglesias spell effects. Safe to re-run.
 ///   1 Fireball        - existing, straight shot with a small blast.
 ///   2 Frost Lance     - fast, pierces up to 3 enemies, slows them by 50% for 2.5 s.
-///   3 Chain Lightning - instant, jumps to 3 more enemies.
+///   3 Chain Lightning - instant, strikes from the sky where you aim (stuns, small blast).
 ///   4 Arcane Missiles - 3 homing missiles.
 ///   5 Arcane Nova     - blast around you: damage, knockback, erases enemy bolts. 6 s cooldown.
 /// </summary>
@@ -68,7 +68,6 @@ public static class SpellSetup
         lightning.aimAssistRadius = 4f;
         lightning.knockback = 6f;
         lightning.stunDuration = 1f;
-        lightning.jumps = 0;
         lightning.boltColor = new Color(0.45f, 0.7f, 1f);
         lightning.boltWidth = 0.35f;
         lightning.hitVfx = AssetDatabase.LoadAssetAtPath<GameObject>(KIFx + "Human_SpellAura_Lightning.prefab");

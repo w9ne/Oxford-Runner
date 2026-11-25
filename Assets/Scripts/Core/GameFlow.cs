@@ -25,7 +25,6 @@ public static class GameFlow
 {
     public const string MainMenuScene = "MainMenu";
     public const string TutorialScene = "Tutorial";
-    public const string SandboxScene = "MovementTest";
     public const string Level1Scene = "Level1";
     public const string Level2Scene = "Level2";
     public const string Level3Scene = "Level3";
@@ -41,6 +40,9 @@ public static class GameFlow
 
     /// <summary>True while the pause menu is open; gameplay input ignores the mouse.</summary>
     public static bool Paused { get; set; }
+
+    /// <summary>True while the level results screen is up (the pause menu stays shut).</summary>
+    public static bool ShowingResults { get; set; }
 
     public static void Play()
     {
@@ -92,6 +94,7 @@ public static class GameFlow
     private static void Load(string scene)
     {
         Paused = false;
+        ShowingResults = false;
         Time.timeScale = 1f;
         SceneManager.LoadScene(scene);
     }

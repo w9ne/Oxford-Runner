@@ -7,14 +7,14 @@ using UnityEngine;
 /// <summary>
 /// Menu: Oxford Runner > Build Main Menu
 /// Creates Scenes/MainMenu.unity (camera + MainMenu component), puts it first in the build list
-/// (MainMenu, Tutorial, MovementTest), and adds the pause menu to the Player prefab. Safe to re-run.
+/// (MainMenu, Tutorial), and adds the pause menu to the Player prefab. Safe to re-run.
 /// </summary>
 public static class MenuBuilder
 {
     private const string MenuScenePath = "Assets/Scenes/MainMenu.unity";
     private static readonly string[] BuildOrder =
     {
-        MenuScenePath, "Assets/Scenes/Tutorial.unity", "Assets/Scenes/MovementTest.unity",
+        MenuScenePath, "Assets/Scenes/Tutorial.unity",
     };
 
     [MenuItem("Oxford Runner/Build Main Menu")]

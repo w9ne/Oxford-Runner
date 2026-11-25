@@ -72,6 +72,7 @@ public class FirstPersonController : MonoBehaviour
 
     private bool isGrounded;
     private float lastGroundedTime;
+    private float jumpedAt = -1f;   // last time we pushed off (jump / wall jump / slide jump)
     private int airJumpsLeft;
 
     private bool isDashing;
@@ -155,12 +156,18 @@ public class FirstPersonController : MonoBehaviour
         moveInput = ForceMoveInput ?? new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
         if (moveInput.sqrMagnitude > 1f) moveInput.Normalize();
 
-        if (Input.GetKeyDown(KeyCode.Space)) jumpQueued = true;
-        if (Input.GetKeyDown(KeyCode.LeftShift)) dashQueued = true;
+        if (!GameFlow.Paused)   // physics is stopped while paused; a queued press would fire on resume
+        {
+            if (Input.GetKeyDown(KeyCode.Space)) jumpQueued = true;
+            if (Input.GetKeyDown(KeyCode.LeftShift)) dashQueued = true;
+        }
         slideHeld = Input.GetKey(slideKey) || ForceSlideHeld;
+        ApplyLook();
     }
 
-    private void LateUpdate()
+    // Runs at the end of Update, before animation: the arms / book IK (PlayerBody) read the camera, so turning it
+    // later (LateUpdate) left the hands one frame behind the view.
+    private void ApplyLook()
     {
         // Tilt the head AWAY from the wall: right wall -> lean left (positive Z roll).
         float targetTilt = 0f;
@@ -168,10 +175,12 @@ public class FirstPersonController : MonoBehaviour
         else if (isSliding) targetTilt = slideCameraTilt;
         currentTilt = Mathf.Lerp(currentTilt, targetTilt, 10f * Time.deltaTime);
 
-        transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+        // Only the camera turns here, every frame. The body turns in FixedUpdate via rb.MoveRotation: writing
+        // transform.rotation each frame reset the Rigidbody's interpolation, so the camera only moved on physics
+        // ticks and juddered sideways while strafing (A/D) and turning.
         if (cameraPivot != null)
         {
-            cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, currentTilt);
+            cameraPivot.rotation = Quaternion.Euler(pitch, yaw, currentTilt);
             Vector3 lp = cameraPivot.localPosition;
             float targetY = isSliding ? slideCameraHeight : standCameraHeight;
             lp.y = Mathf.Lerp(lp.y, targetY, 15f * Time.deltaTime);
@@ -181,7 +190,7 @@ public class FirstPersonController : MonoBehaviour
 
     private void FixedUpdate()
     {
-        rb.MoveRotation(Quaternion.Euler(0f, yaw, 0f));
+        rb.MoveRotation(YawRotation);
         CheckGround();
         UpdateSlide();
         UpdateWallRun();
@@ -215,19 +224,27 @@ public class FirstPersonController : MonoBehaviour
         rb.linearVelocity = Vector3.zero;
         yaw = facingYaw;
         pitch = 0f;
-        transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+        rb.rotation = transform.rotation = Quaternion.Euler(0f, yaw, 0f);
         jumpQueued = dashQueued = false;
         lastWall = null;
     }
+
+    /// <summary>Facing from the mouse, current this frame (the body's transform catches up on the next physics tick).</summary>
+    private Quaternion YawRotation => Quaternion.Euler(0f, yaw, 0f);
+    private Vector3 Forward => YawRotation * Vector3.forward;
+    private Vector3 Right => YawRotation * Vector3.right;
 
     // ---------- Ground ----------
     private void CheckGround()
     {
         float radius = capsule.radius * 0.95f;
         Vector3 origin = transform.position + capsule.center + Vector3.down * (capsule.height * 0.5f - capsule.radius) + Vector3.up * 0.05f;
-        bool hit = Physics.SphereCast(origin, radius, Vector3.down, out _, groundCheckDistance + 0.05f, groundMask, QueryTriggerInteraction.Ignore);
+        bool hit = Physics.SphereCast(origin, radius, Vector3.down, out RaycastHit ground, groundCheckDistance + 0.05f, groundMask, QueryTriggerInteraction.Ignore);
         bool wasGrounded = isGrounded;
-        isGrounded = hit && rb.linearVelocity.y <= 0.1f;
+        // Walking up a ramp (stairs) moves you upward too: still grounded unless we just jumped. Before, ramps
+        // counted as air (weak air control + extra gravity), so you slid out on the spiral staircase.
+        bool walkingUpSlope = ground.normal.y > 0.7f && Time.time - jumpedAt > 0.2f;
+        isGrounded = hit && (rb.linearVelocity.y <= 0.1f || walkingUpSlope);
 
         if (isGrounded)
         {
@@ -242,7 +259,7 @@ public class FirstPersonController : MonoBehaviour
     // ---------- Movement ----------
     private Vector3 WishDirection()
     {
-        return (transform.forward * moveInput.y + transform.right * moveInput.x);
+        return Forward * moveInput.y + Right * moveInput.x;
     }
 
     private void Move()
@@ -287,6 +304,7 @@ public class FirstPersonController : MonoBehaviour
             airJumpsLeft = airJumps;   // wall jump refreshes the double jump
             canAirDash = true;
             rb.linearVelocity = v;
+            jumpedAt = Time.time;
             return;
         }
 
@@ -301,6 +319,7 @@ public class FirstPersonController : MonoBehaviour
         if (isGrounded || coyote)
         {
             SetVerticalVelocity(jumpVelocity);
+            jumpedAt = Time.time;
             lastGroundedTime = -999f;
             isGrounded = false;
         }
@@ -315,6 +334,7 @@ public class FirstPersonController : MonoBehaviour
                 rb.linearVelocity = new Vector3(redirected.x, rb.linearVelocity.y, redirected.z);
             }
             SetVerticalVelocity(jumpVelocity);
+            jumpedAt = Time.time;
         }
     }
 
@@ -351,7 +371,7 @@ public class FirstPersonController : MonoBehaviour
     private void StartSlide()
     {
         Vector3 dir = WishDirection();
-        if (dir.sqrMagnitude < 0.01f) dir = transform.forward;
+        if (dir.sqrMagnitude < 0.01f) dir = Forward;
         slideDirection = dir.normalized;
         isSliding = true;
 
@@ -394,6 +414,7 @@ public class FirstPersonController : MonoBehaviour
         slideLeftGroundTime = -999f;
         lastGroundedTime = -999f;
         isGrounded = false;
+        jumpedAt = Time.time;
 
         Vector3 v = dir * slideSpeed * slideJumpHorizontalBoost;
         v.y = jumpVelocity * slideJumpVerticalBoost;
@@ -407,7 +428,7 @@ public class FirstPersonController : MonoBehaviour
         if (!isGrounded && !isWallRunning && !canAirDash) return;
 
         Vector3 dir = WishDirection();
-        if (dir.sqrMagnitude < 0.01f) dir = transform.forward;
+        if (dir.sqrMagnitude < 0.01f) dir = Forward;
         dashDirection = dir.normalized;
 
         if (isWallRunning) StopWallRun();
@@ -433,9 +454,9 @@ public class FirstPersonController : MonoBehaviour
     {
         Vector3 origin = transform.position + capsule.center;
         float dist = capsule.radius + wallCheckDistance;
-        if (Physics.Raycast(origin, transform.right, out hit, dist, ~0, QueryTriggerInteraction.Ignore) && hit.collider.CompareTag(wallRunTag))
+        if (Physics.Raycast(origin, Right, out hit, dist, ~0, QueryTriggerInteraction.Ignore) && hit.collider.CompareTag(wallRunTag))
         { side = 1; return true; }
-        if (Physics.Raycast(origin, -transform.right, out hit, dist, ~0, QueryTriggerInteraction.Ignore) && hit.collider.CompareTag(wallRunTag))
+        if (Physics.Raycast(origin, -Right, out hit, dist, ~0, QueryTriggerInteraction.Ignore) && hit.collider.CompareTag(wallRunTag))
         { side = -1; return true; }
         side = 0;
         return false;
@@ -498,7 +519,7 @@ public class FirstPersonController : MonoBehaviour
     private Vector3 WallRunDirection()
     {
         Vector3 along = Vector3.Cross(wallNormal, Vector3.up);
-        if (Vector3.Dot(along, transform.forward) < 0f) along = -along;
+        if (Vector3.Dot(along, Forward) < 0f) along = -along;
         return along;
     }
 

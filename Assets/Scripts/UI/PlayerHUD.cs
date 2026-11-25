@@ -32,6 +32,7 @@ public class PlayerHUD : MonoBehaviour
     private Image parryFillImage, flash;
     private Text healthText, parryText, popText;
     private float trailValue = 1f, flashAlpha;
+    private int shownHealth = -1;
     private Color flashColor;
     private Coroutine popRoutine;
 
@@ -44,18 +45,17 @@ public class PlayerHUD : MonoBehaviour
 
     private void OnEnable()
     {
-        if (health != null) { health.Damaged += OnDamaged; health.Healed += OnHealed; }
+        if (health != null) health.Damaged += OnDamaged;
         if (parry != null) { parry.Parried += OnParried; parry.Missed += OnMissed; }
     }
 
     private void OnDisable()
     {
-        if (health != null) { health.Damaged -= OnDamaged; health.Healed -= OnHealed; }
+        if (health != null) health.Damaged -= OnDamaged;
         if (parry != null) { parry.Parried -= OnParried; parry.Missed -= OnMissed; }
     }
 
     private void OnDamaged(DamageInfo info) => Flash(new Color(1f, 0.1f, 0.05f), 0.35f);
-    private void OnHealed(float amount) { }
     private void OnParried(SpellProjectile p)
     {
         Flash(WindowColor, 0.25f);
@@ -72,7 +72,8 @@ public class PlayerHUD : MonoBehaviour
             // The trail lags behind on damage, snaps up on heals.
             trailValue = h > trailValue ? h : Mathf.MoveTowards(trailValue, h, Time.unscaledDeltaTime * 0.6f);
             healthTrail.anchorMax = new Vector2(trailValue, 1f);
-            healthText.text = Mathf.CeilToInt(health.Health).ToString();
+            int hp = Mathf.CeilToInt(health.Health);
+            if (hp != shownHealth) { shownHealth = hp; healthText.text = hp.ToString(); }   // no new string every frame
         }
 
         if (parry != null)
@@ -174,17 +175,8 @@ public class PlayerHUD : MonoBehaviour
     // ------------------------------------------------------------------ construction
     private void Build()
     {
-        Font font = MenuUI.Font;
-        var canvasGO = new GameObject("PlayerHUD", typeof(Canvas), typeof(CanvasScaler));
-        canvasGO.transform.SetParent(transform, false);
-        var canvas = canvasGO.GetComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 5;
-        var scaler = canvasGO.GetComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920f, 1080f);
-        scaler.matchWidthOrHeight = 0.5f;
-        var root = canvasGO.transform;
+        var root = MenuUI.Canvas("PlayerHUD", 5).transform;
+        root.SetParent(transform, false);
 
         // Full-screen flash (behind everything else).
         flash = Rect(root, "Flash", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, Color.clear);
@@ -194,13 +186,13 @@ public class PlayerHUD : MonoBehaviour
         hb.rectTransform.pivot = Vector2.zero;
         healthTrail = Fill(hb.transform, "Trail", TrailColor);
         healthFill = Fill(hb.transform, "Fill", HealthColor);
-        healthText = Label(root, "HealthText", font, 26, Color.white, TextAnchor.LowerLeft, new Vector2(470f, 76f), new Vector2(120f, 32f), Vector2.zero);
+        healthText = Label(root, "HealthText", 26, Color.white, TextAnchor.LowerLeft, new Vector2(470f, 76f), new Vector2(120f, 32f), Vector2.zero);
 
         // Parry meter, just under the crosshair.
         var pb = Rect(root, "ParryMeter", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -36f), new Vector2(80f, 6f), new Color(0f, 0f, 0f, 0.5f));
         parryFill = Fill(pb.transform, "Fill", ReadyColor);
         parryFillImage = parryFill.GetComponent<Image>();
-        parryText = Label(root, "ParryText", font, 18, ReadyColor, TextAnchor.UpperCenter, new Vector2(0f, -42f), new Vector2(120f, 22f), new Vector2(0.5f, 0.5f));
+        parryText = Label(root, "ParryText", 18, ReadyColor, TextAnchor.UpperCenter, new Vector2(0f, -42f), new Vector2(120f, 22f), new Vector2(0.5f, 0.5f));
 
         // "Parry now" cue: corner brackets around the crosshair.
         var cueGO = new GameObject("ParryCue", typeof(RectTransform));
@@ -222,28 +214,25 @@ public class PlayerHUD : MonoBehaviour
             cueBracketHome[k] = v.rectTransform.anchoredPosition;
             cueBrackets[k++] = v;
         }
-        cueText = Label(cueRoot, "CueText", font, 20, CueColor, TextAnchor.MiddleCenter, new Vector2(0f, 48f), new Vector2(160f, 26f), new Vector2(0.5f, 0.5f));
+        cueText = Label(cueRoot, "CueText", 20, CueColor, TextAnchor.MiddleCenter, new Vector2(0f, 48f), new Vector2(160f, 26f), new Vector2(0.5f, 0.5f));
         cueText.text = "PARRY";
         cueText.fontStyle = FontStyle.Bold;
         cueGO.SetActive(false);
 
         // "PARRY!" pop, above the crosshair.
-        popText = Label(root, "Pop", font, 44, Color.clear, TextAnchor.MiddleCenter, new Vector2(0f, 70f), new Vector2(500f, 60f), new Vector2(0.5f, 0.5f));
+        popText = Label(root, "Pop", 44, Color.clear, TextAnchor.MiddleCenter, new Vector2(0f, 70f), new Vector2(500f, 60f), new Vector2(0.5f, 0.5f));
         popText.fontStyle = FontStyle.Bold;
         popText.gameObject.AddComponent<Shadow>().effectDistance = new Vector2(2f, -2f);
     }
 
     private static Image Rect(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, Vector2 pos, Vector2 size, Color color)
     {
-        var go = new GameObject(name, typeof(RectTransform), typeof(Image));
-        go.transform.SetParent(parent, false);
-        var rt = (RectTransform)go.transform;
+        var rt = MenuUI.Rect(parent, name, pos, size, color);
         rt.anchorMin = anchorMin;
         rt.anchorMax = anchorMax;
         rt.anchoredPosition = pos;
         rt.sizeDelta = size;
-        var img = go.GetComponent<Image>();
-        img.color = color;
+        var img = rt.GetComponent<Image>();
         img.raycastTarget = false;
         return img;
     }
@@ -257,24 +246,15 @@ public class PlayerHUD : MonoBehaviour
         return rt;
     }
 
-    private static Text Label(Transform parent, string name, Font font, int size, Color color, TextAnchor align,
+    private static Text Label(Transform parent, string name, int size, Color color, TextAnchor align,
                               Vector2 pos, Vector2 box, Vector2 anchor)
     {
-        var go = new GameObject(name, typeof(RectTransform), typeof(Text));
-        go.transform.SetParent(parent, false);
-        var rt = (RectTransform)go.transform;
+        var t = MenuUI.Label(parent, "", size, pos, box, color, align);
+        t.name = name;
+        var rt = t.rectTransform;
         rt.anchorMin = rt.anchorMax = anchor;
         rt.pivot = new Vector2(anchor.x == 0f ? 0f : 0.5f, anchor.y == 0f ? 0f : 0.5f);
         rt.anchoredPosition = pos;
-        rt.sizeDelta = box;
-        var t = go.GetComponent<Text>();
-        t.font = font;
-        t.fontSize = size;
-        t.color = color;
-        t.alignment = align;
-        t.raycastTarget = false;
-        t.horizontalOverflow = HorizontalWrapMode.Overflow;
-        t.verticalOverflow = VerticalWrapMode.Overflow;   // Cinzel has tall line metrics; never clip
         return t;
     }
 }

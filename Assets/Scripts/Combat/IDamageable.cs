@@ -54,7 +54,7 @@ public interface IHealthReadout
 /// <summary>Helpers shared by spells that need to find targets.</summary>
 public static class Targeting
 {
-    private static readonly Collider[] buffer = new Collider[64];
+    private static readonly Collider[] buffer = new Collider[1024];   // walls count too: Level 3 has ~700 colliders in 50 m
 
     /// <summary>Living damageables of the opposing faction within radius, each listed once.</summary>
     public static List<IDamageable> Opponents(Vector3 center, float radius, Faction attacker)

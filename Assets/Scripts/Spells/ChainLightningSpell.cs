@@ -19,19 +19,12 @@ public class ChainLightningSpell : Spell
     public float knockback = 6f;
     public float stunDuration = 1f;
 
-    [Header("Legacy (unused)")]
-    [Min(0)] public int jumps = 0;
-    public float jumpRadius = 0f;
-    [Range(0f, 1f)] public float damageFalloff = 1f;
-
     [Header("Visuals")]
     public Color boltColor = new Color(0.45f, 0.7f, 1f);
     public float boltWidth = 0.35f;
     public GameObject hitVfx;
     public float hitVfxLifetime = 2f;
     public float hitVfxScale = 1f;
-
-    private static readonly RaycastHit[] hits = new RaycastHit[16];
 
     public override void Cast(SpellCaster caster, Vector3 origin, Vector3 direction)
     {
@@ -74,15 +67,8 @@ public class ChainLightningSpell : Spell
     // Where the crosshair lands (first thing hit), or the ground under the end of the range.
     private Vector3 AimSpot(Vector3 origin, Vector3 dir, Transform owner)
     {
-        int n = Physics.RaycastNonAlloc(origin, dir, hits, range, ~0, QueryTriggerInteraction.Ignore);
-        float bestDist = float.MaxValue;
-        Vector3 point = origin + dir * range;
-        for (int i = 0; i < n; i++)
-        {
-            if (hits[i].collider.transform.IsChildOf(owner)) continue;
-            if (hits[i].distance < bestDist) { bestDist = hits[i].distance; point = hits[i].point; }
-        }
-        return bestDist == float.MaxValue ? GroundBelow(point) : point;
+        Vector3 point = Aim.PointUnderCrosshair(origin, dir, owner, range, out float dist);
+        return dist >= range ? GroundBelow(point) : point;
     }
 
     private static Vector3 GroundBelow(Vector3 p)

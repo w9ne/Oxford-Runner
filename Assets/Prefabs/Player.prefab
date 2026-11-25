@@ -378,6 +378,7 @@ GameObject:
   - component: {fileID: 2237378683224332013}
   - component: {fileID: 2877355629581186470}
   - component: {fileID: 4106620031311148453}
+  - component: {fileID: 8631067929372678454}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -460,6 +461,18 @@ AudioListener:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1480354640380095122}
   m_Enabled: 1
+--- !u!114 &8631067929372678454
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1480354640380095122}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f413c8a25f899668bbf8a36a6dc6726d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DeferredFog
 --- !u!1 &1565098661402218114
 GameObject:
   m_ObjectHideFlags: 0
@@ -1521,6 +1534,7 @@ MonoBehaviour:
   damageMultiplier: 3
   reflectedTint: {r: 0.35, g: 0.9, b: 1, a: 1}
   healOnParry: 10
+  freezeFrame: 1
   hitStopDuration: 0.07
   hitStopTimeScale: 0.05
 --- !u!114 &8938649440199942127

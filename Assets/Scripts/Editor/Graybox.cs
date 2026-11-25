@@ -7,9 +7,6 @@ public static class Graybox
     private const string MatDir = "Assets/Materials/";
     public const string WallRunTag = "WallRun";
 
-    public static Material WallRun => Load("Graybox_WallRun");
-    public static Material Platform => Load("Graybox_Platform");
-    public static Material Wall => Load("Graybox_Wall");
     public static Material Goal => Load("Graybox_Goal");
     public static Material Enemy => Load("Graybox_Enemy");
     public static Material Door => Load("Graybox_Door");

@@ -23,7 +23,6 @@ public class LevelManager : MonoBehaviour
         public float enemyHealth = 50f;
         public float enemySpeed = 3.5f;
         public float enemyFireInterval = 3f;
-        public float spawnInterval = 1f;
     }
 
     [Serializable]
@@ -33,11 +32,21 @@ public class LevelManager : MonoBehaviour
         [Tooltip("Walking into this box starts the area's waves.")]
         public Bounds triggerArea = new Bounds(Vector3.zero, Vector3.one * 20f);
         public Transform[] spawnPoints;
+        [Tooltip("Optional: mages spawn here first (e.g. balconies); everyone else only uses spawnPoints.")]
+        public Transform[] mageSpawnPoints;
         public List<Wave> waves = new List<Wave>();
         [Tooltip("Enemies already placed in the level that belong to this area (tower casters etc).")]
         public List<Enemy> garrison = new List<Enemy>();
+        [Tooltip("Garrison wakes when the player walks in instead of when the area unlocks (so they can't shoot you on the way there).")]
+        public bool garrisonWakesOnEnter;
         [Tooltip("Barriers that block the way into this area; removed when the area unlocks.")]
         public List<GameObject> gates = new List<GameObject>();
+        [Tooltip("Closed behind the player when they walk in (SlideShut slides, GateDoor swings shut, anything else is switched on).")]
+        public List<GameObject> closeOnEnter = new List<GameObject>();
+        [Tooltip("Respawn point once the player is in this area (needed when the way back is closed).")]
+        public Transform checkpoint;
+        [Tooltip("Areas behind the player, destroyed once they walk in and the way back is shut (frees rendering and memory).")]
+        public List<GameObject> unloadOnEnter = new List<GameObject>();
 
         [NonSerialized] public bool started, wavesDone;
         [NonSerialized] public readonly List<Enemy> alive = new List<Enemy>();
@@ -51,9 +60,6 @@ public class LevelManager : MonoBehaviour
     [SerializeField] private Enemy commanderPrefab;
     [SerializeField] private Transform playerStart;
     [SerializeField] private GameObject exitPortal;            // inactive until the level is cleared
-    [SerializeField] private float timeBetweenWaves = 3f;
-    [Tooltip("Spawn every enemy of every wave the moment an area starts (overwhelming), instead of wave by wave.")]
-    [SerializeField] private bool spawnAllAtOnce = true;
     [Tooltip("Never put more than this many enemies on one spawn point.")]
     [SerializeField] private int maxPerSpawnPoint = 3;
     [Tooltip("Commanders per area (-1 = automatic: 1 with 4+ enemies, 2 with 9+).")]
@@ -86,6 +92,7 @@ public class LevelManager : MonoBehaviour
         commanderPrefab = commander;
     }
 
+    public string LevelName => levelName;
     public bool Cleared { get; private set; }
     public event Action LevelCleared;
 
@@ -136,7 +143,17 @@ public class LevelManager : MonoBehaviour
             if (!e.started && e.triggerArea.Contains(player.position))
             {
                 e.started = true;
-                StartCoroutine(RunWaves(e));
+                if (e.checkpoint != null) Checkpoints.Set(e.checkpoint.position, e.checkpoint.eulerAngles.y);
+                foreach (var c in e.closeOnEnter)
+                    if (c != null)
+                    {
+                        var shut = c.GetComponent<SlideShut>();
+                        var door = c.GetComponent<GateDoor>();
+                        if (shut != null) shut.Close(); else if (door != null) door.Close(); else c.SetActive(true);
+                    }
+                if (e.garrisonWakesOnEnter) WakeGarrison(e);
+                if (e.unloadOnEnter.Count > 0) StartCoroutine(Unload(e.unloadOnEnter));
+                SpawnWaves(e);
             }
             if (e.started && e.wavesDone && e.alive.Count == 0)
             {
@@ -149,25 +166,42 @@ public class LevelManager : MonoBehaviour
         UpdateHud();
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-        if (Input.GetKeyDown(KeyCode.K))   // debug: kill everything that's currently alive
-            foreach (var e in encounters) foreach (var x in e.alive.ToArray()) if (x != null) x.Die();
+        // Debug: kill the live area only. Later areas' sleeping garrisons are in their alive lists too.
+        if (Input.GetKeyDown(KeyCode.K) && current < encounters.Count)
+            foreach (var x in encounters[current].alive.ToArray()) if (x != null && x.gameObject.activeInHierarchy) x.Die();
 #endif
     }
 
     private void UnlockArea(Encounter e)
     {
-        foreach (var g in e.garrison) if (g != null) g.gameObject.SetActive(true);
+        if (!e.garrisonWakesOnEnter) WakeGarrison(e);
         foreach (var gate in e.gates) if (gate != null) StartCoroutine(OpenGate(gate));
         bannerUntil = Time.time + 4f;
+    }
+
+    private static void WakeGarrison(Encounter e)
+    {
+        foreach (var g in e.garrison) if (g != null) g.gameObject.SetActive(true);
+    }
+
+    // Waits for the way back to finish shutting, then destroys what's behind it and frees its meshes.
+    private IEnumerator Unload(List<GameObject> behind)
+    {
+        yield return new WaitForSeconds(5f);
+        foreach (var g in behind) if (g != null) Destroy(g);
+        yield return null;
+        Resources.UnloadUnusedAssets();
     }
 
     // Collider off at once, then the barrier sinks into the ground and disappears.
     private IEnumerator OpenGate(GameObject gate)
     {
+        var torch = gate.GetComponent<Ignite>();
+        if (torch != null) { torch.Open(); yield break; }
         var door = gate.GetComponent<GateDoor>();
         if (door != null) { door.Open(); yield break; }
-        var lowered = gate.GetComponent<DescendOnOpen>();
-        if (lowered != null) { lowered.Open(); yield break; }
+        var slide = gate.GetComponent<SlideShut>();
+        if (slide != null) { slide.Open(); yield break; }
         foreach (var c in gate.GetComponentsInChildren<Collider>()) c.enabled = false;
         Transform t = gate.transform;
         Vector3 start = t.position, scale = t.localScale;
@@ -182,29 +216,20 @@ public class LevelManager : MonoBehaviour
         gate.SetActive(false);
     }
 
-    private IEnumerator RunWaves(Encounter e)
+    // Every enemy of every wave spawns the moment the area starts (overwhelming on purpose).
+    // Mages fill mageSpawnPoints first (when set), then share the main points with everyone else.
+    private void SpawnWaves(Encounter e)
     {
-        if (spawnAllAtOnce)
-        {
-            int index = 0, total = 0;
-            foreach (var wave in e.waves) total += wave.enemyCount;
-            foreach (var wave in e.waves)
-                for (int i = 0; i < wave.enemyCount; i++, index++) Spawn(e, wave, index, PickType(index, total));
-            e.wavesDone = true;
-            yield break;
-        }
-        for (int w = 0; w < e.waves.Count; w++)
-        {
-            var wave = e.waves[w];
-            for (int i = 0; i < wave.enemyCount; i++)
+        int index = 0, total = 0, main = 0, upper = 0;
+        int upperSlots = e.mageSpawnPoints != null ? e.mageSpawnPoints.Length * maxPerSpawnPoint : 0;
+        foreach (var wave in e.waves) total += wave.enemyCount;
+        foreach (var wave in e.waves)
+            for (int i = 0; i < wave.enemyCount; i++, index++)
             {
-                Spawn(e, wave, i, PickType(i, wave.enemyCount));
-                yield return new WaitForSeconds(wave.spawnInterval);
+                Enemy type = PickType(index, total);
+                if (type != null && type == magePrefab && upper < upperSlots) Spawn(e, wave, e.mageSpawnPoints, upper++, type);
+                else Spawn(e, wave, e.spawnPoints, main++, type);
             }
-            // Next wave once this one's spawns are dead (the garrison doesn't hold waves back).
-            while (e.alive.Exists(x => x != null && !x.IsDead && !e.garrison.Contains(x))) yield return null;
-            if (w < e.waves.Count - 1) yield return new WaitForSeconds(timeBetweenWaves);
-        }
         e.wavesDone = true;
     }
 
@@ -262,20 +287,28 @@ public class LevelManager : MonoBehaviour
         r.receiveShadows = false;
     }
 
-    private void Spawn(Encounter e, Wave wave, int index, Enemy prefab)
+    private void Spawn(Encounter e, Wave wave, Transform[] spawnPoints, int index, Enemy prefab)
     {
-        if (prefab == null || e.spawnPoints == null || e.spawnPoints.Length == 0) return;
-        int points = e.spawnPoints.Length;
+        if (prefab == null || spawnPoints == null || spawnPoints.Length == 0) return;
+        int points = spawnPoints.Length;
         int slot = index / points;     // how many already stand on this point
         if (slot >= maxPerSpawnPoint)
         {
             Debug.LogWarning($"[LevelManager] {e.name}: not enough spawn points for enemy {index + 1} (max {maxPerSpawnPoint} per point).");
             return;
         }
-        Transform point = e.spawnPoints[index % points];
-        // Spread the ones sharing a point around it so they don't stack.
-        Vector3 offset = slot == 0 ? Vector3.zero : Quaternion.Euler(0f, slot * 137f, 0f) * Vector3.forward * 1.8f;
-        var enemy = Instantiate(prefab, point.position + offset, point.rotation);
+        Transform point = spawnPoints[index % points];
+        // Spread the ones sharing a point around it so they don't stack, never through a wall or fence.
+        Vector3 pos = point.position;
+        if (slot > 0)
+            for (int k = 0; k < 6; k++)
+            {
+                Vector3 offset = Quaternion.Euler(0f, slot * 137f + k * 60f, 0f) * Vector3.forward * 1.8f;
+                if (Physics.Linecast(pos, pos + offset * 1.3f, ~0, QueryTriggerInteraction.Ignore)) continue;
+                pos += offset;
+                break;
+            }
+        var enemy = Instantiate(prefab, pos, point.rotation);
         enemy.Configure(wave.enemyHealth, wave.enemySpeed, wave.enemyFireInterval);
         e.alive.Add(enemy);
     }
@@ -307,18 +340,22 @@ public class LevelManager : MonoBehaviour
         rt.anchoredPosition = new Vector2(0f, y);
     }
 
+    private int hudKey = -1;   // texts are rebuilt only when this changes (no new strings every frame)
+
     private void UpdateHud()
     {
         if (titleText == null) return;
-        float a = Mathf.Clamp01(bannerUntil - Time.time);
+        titleText.color = new Color(1f, 1f, 1f, Mathf.Clamp01(bannerUntil - Time.time));
+        var area = current < encounters.Count ? encounters[current] : null;
+        int key = Cleared ? -2 : current * 100000 + (area != null && area.started ? 50000 : 0) + (area != null ? area.alive.Count : 0);
+        if (key == hudKey) return;
+        hudKey = key;
+
         titleText.text = Cleared ? "LEVEL CLEARED"
                        : current > 0 ? "AREA CLEARED - THE WAY IS OPEN"
                        : levelName.ToUpperInvariant();
-        titleText.color = new Color(1f, 1f, 1f, a);
-
         if (Cleared) { objectiveText.text = "The portal is open. Find it to move on."; return; }
-        if (current >= encounters.Count) return;
-        var area = encounters[current];
+        if (area == null) return;
         string goal = area.started ? "Defeat every enemy to open the way on" : "Head into the next area";
         objectiveText.text = $"Area {current + 1}/{encounters.Count}: {area.name}     {goal}     Enemies: {area.alive.Count}";
     }

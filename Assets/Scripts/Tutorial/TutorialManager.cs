@@ -169,17 +169,8 @@ public class TutorialManager : MonoBehaviour
 
     private void BuildUI()
     {
-        Font font = MenuUI.Font;
-
-        var canvasGO = new GameObject("TutorialUI", typeof(Canvas), typeof(CanvasScaler));
+        var canvasGO = MenuUI.Canvas("TutorialUI", 10).gameObject;
         canvasGO.transform.SetParent(transform, false);
-        var canvas = canvasGO.GetComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 10;
-        var scaler = canvasGO.GetComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920f, 1080f);
-        scaler.matchWidthOrHeight = 0.5f;
 
         // Prompt card (top centre)
         card = Panel(canvasGO.transform, "PromptCard", new Vector2(0.5f, 1f), new Vector2(760f, 190f), new Color(0.05f, 0.05f, 0.09f, 0.78f));
@@ -187,21 +178,21 @@ public class TutorialManager : MonoBehaviour
         var stripe = Panel(card, "Accent", new Vector2(0.5f, 1f), new Vector2(760f, 5f), accent);
         stripe.anchoredPosition = Vector2.zero;
 
-        stepLabel = Label(card, "Step", font, 20, accent, TextAnchor.UpperLeft, new Vector2(28f, -18f), new Vector2(700f, 28f));
-        titleText = Label(card, "Title", font, 40, Color.white, TextAnchor.UpperLeft, new Vector2(28f, -44f), new Vector2(700f, 52f));
+        stepLabel = Label(card, "Step", 20, accent, TextAnchor.UpperLeft, new Vector2(28f, -18f), new Vector2(700f, 28f));
+        titleText = Label(card, "Title", 40, Color.white, TextAnchor.UpperLeft, new Vector2(28f, -44f), new Vector2(700f, 52f));
         titleText.fontStyle = FontStyle.Bold;
-        bodyText = Label(card, "Body", font, 24, new Color(0.88f, 0.88f, 0.92f), TextAnchor.UpperLeft, new Vector2(28f, -100f), new Vector2(704f, 60f));
-        extraText = Label(card, "Extra", font, 22, accent, TextAnchor.UpperLeft, new Vector2(28f, -154f), new Vector2(704f, 30f));
+        bodyText = Label(card, "Body", 24, new Color(0.88f, 0.88f, 0.92f), TextAnchor.UpperLeft, new Vector2(28f, -100f), new Vector2(704f, 60f));
+        extraText = Label(card, "Extra", 22, accent, TextAnchor.UpperLeft, new Vector2(28f, -154f), new Vector2(704f, 30f));
 
         // Timer (top right)
-        timerText = Label(canvasGO.transform, "Timer", font, 34, Color.white, TextAnchor.UpperRight, Vector2.zero, new Vector2(300f, 50f));
+        timerText = Label(canvasGO.transform, "Timer", 34, Color.white, TextAnchor.UpperRight, Vector2.zero, new Vector2(300f, 50f));
         var trt = timerText.rectTransform;
         trt.anchorMin = trt.anchorMax = trt.pivot = new Vector2(1f, 1f);
         trt.anchoredPosition = new Vector2(-40f, -30f);
         timerText.gameObject.AddComponent<Shadow>().effectDistance = new Vector2(2f, -2f);
 
         // Toast (lower centre)
-        toastText = Label(canvasGO.transform, "Toast", font, 28, new Color(1f, 0.55f, 0.45f), TextAnchor.MiddleCenter, Vector2.zero, new Vector2(800f, 50f));
+        toastText = Label(canvasGO.transform, "Toast", 28, new Color(1f, 0.55f, 0.45f), TextAnchor.MiddleCenter, Vector2.zero, new Vector2(800f, 50f));
         var tort = toastText.rectTransform;
         tort.anchorMin = tort.anchorMax = tort.pivot = new Vector2(0.5f, 0.5f);
         tort.anchoredPosition = new Vector2(0f, 110f);   // just above the crosshair, clear of the book
@@ -212,36 +203,25 @@ public class TutorialManager : MonoBehaviour
 
     private static RectTransform Panel(Transform parent, string name, Vector2 anchor, Vector2 size, Color color)
     {
-        var go = new GameObject(name, typeof(RectTransform), typeof(Image));
-        go.transform.SetParent(parent, false);
-        var rt = (RectTransform)go.transform;
+        var rt = MenuUI.Rect(parent, name, new Vector2(0f, -30f), size, color);
         rt.anchorMin = rt.anchorMax = anchor;
         rt.pivot = new Vector2(0.5f, 1f);
-        rt.sizeDelta = size;
         rt.anchoredPosition = new Vector2(0f, -30f);
-        var img = go.GetComponent<Image>();
-        img.color = color;
-        img.raycastTarget = false;
+        rt.sizeDelta = size;
+        rt.GetComponent<Image>().raycastTarget = false;
         return rt;
     }
 
-    private static Text Label(Transform parent, string name, Font font, int size, Color color, TextAnchor align,
+    // Top-left anchored, wrapping text.
+    private static Text Label(Transform parent, string name, int size, Color color, TextAnchor align,
                               Vector2 topLeft, Vector2 boxSize)
     {
-        var go = new GameObject(name, typeof(RectTransform), typeof(Text));
-        go.transform.SetParent(parent, false);
-        var rt = (RectTransform)go.transform;
+        var text = MenuUI.Label(parent, "", size, topLeft, boxSize, color, align);
+        text.name = name;
+        var rt = text.rectTransform;
         rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0f, 1f);
         rt.anchoredPosition = topLeft;
-        rt.sizeDelta = boxSize;
-        var text = go.GetComponent<Text>();
-        text.font = font;
-        text.fontSize = size;
-        text.color = color;
-        text.alignment = align;
         text.horizontalOverflow = HorizontalWrapMode.Wrap;
-        text.verticalOverflow = VerticalWrapMode.Overflow;
-        text.raycastTarget = false;
         return text;
     }
 }

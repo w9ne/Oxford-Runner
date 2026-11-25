@@ -20,7 +20,6 @@ public static class TutorialBuilder
 {
     private const string ScenePath = "Assets/Scenes/Tutorial.unity";
     private const string PlayerPrefabPath = "Assets/Prefabs/Player.prefab";
-    private const string ArenaScenePath = "Assets/Scenes/MovementTest.unity";
     private const float Width = 8f;             // standard platform width (X)
     private const float PillarBottom = LevelBuilder.DungeonPit;   // platforms are pillars rising from the pit floor
     private const float EndZ = 281f;
@@ -43,7 +42,7 @@ public static class TutorialBuilder
         if (playerPrefab == null)
         {
             EditorUtility.DisplayDialog("Build Tutorial Scene",
-                $"Missing {PlayerPrefabPath}.\nOpen MovementTest and run 'Oxford Runner/Create Player Prefab' first.", "OK");
+                $"Missing {PlayerPrefabPath}.\nOpen a scene with the player and run 'Oxford Runner/Create Player Prefab' first.", "OK");
             return;
         }
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
@@ -203,7 +202,7 @@ public static class TutorialBuilder
         mso.ApplyModifiedPropertiesWithoutUndo();
 
         EditorSceneManager.SaveScene(scene, ScenePath);
-        AddToBuildSettings(ScenePath, ArenaScenePath);
+        AddToBuildSettings(ScenePath);
         Debug.Log($"[TutorialBuilder] Built {ScenePath} with {stations.Count} stations.");
     }
 
@@ -308,7 +307,7 @@ public static class TutorialBuilder
         col.size = new Vector3(1f, 1f, 6f);   // deep trigger so you can't miss it
         var exit = surface.AddComponent<SceneExit>();
         var so = new SerializedObject(exit);
-        so.FindProperty("nextScene").stringValue = System.IO.Path.GetFileNameWithoutExtension(ArenaScenePath);
+        so.FindProperty("nextScene").stringValue = "";   // GameFlow picks what comes next
         so.ApplyModifiedPropertiesWithoutUndo();
     }
 
