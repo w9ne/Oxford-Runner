@@ -352,3 +352,62 @@ adds health + parry + HUD to the Player prefab.
 - Fireball projectile now carries Kevin Iglesias' Human_Spell_Fireball_Large (looping) instead of Hovl red sparks.
 - Cauldrons removed (builder + both scenes). Lightning Strike 24 dmg (was 28). Frost freeze 2 s, frozen enemies take
   2.5x damage. User hand-edited Level 1 (removed a box): patch it in place, don't rebuild.
+
+## 2026-11-24 (5): Level 2 ramparts, palisades, trees
+- New builder pieces: `Rampart` (6 m walkable wall, 4 m wide walk, wall-runnable front face, merlons on the front edge
+  with gaps where ramps land, 1 m back rail, optional arch), `RampartTower` (r 3.5 watchtower + ramp from the walk up to
+  its deck, one garrison caster), `Palisade` (3.5 m wall-runnable wooden wall). `Ramp` takes an optional `bottom` height.
+- Area 1: rampart across z 55 (x -32.5..32.5) with an 8 m arch over the ground route, garrison towers at (+-36, 55),
+  ground ramps at x -14 / +10, two wall-run speed lanes at x +-20. Old watchtowers removed; spawns 1/2 moved to z 46/47.
+- Area 2: side ramparts at x +-47 (z 73.5..120.5), towers at both ends (4 garrisons, crossfire), ground ramps at z 100.
+  Old watchtowers removed; edge barricades moved in to x +-38, spawns 4/5 moved to (-40,92) / (40,106).
+- Area 3: 5 palisades in the open gaps of the keep approach.
+- Big trees (64) and a grass apron outside the curtain walls, background only.
+- Patched into the hand-edited scene via `Level2*` builder methods; builder matches.
+
+## 2026-11-24 (6): Parry fixes, spawn slide tunnels removed
+- Parry [ ] cue now sits exactly on the bolt (the 0.05 s lead put it 1 m ahead) and PlayerHUD runs after the camera
+  (`DefaultExecutionOrder(100)`), so it no longer lags when you turn.
+- Timing read: brackets close in as the bolt approaches and turn cyan once it will reach the barrier within the 0.3 s
+  window (press now). "PARRY" text kept.
+- Barrier catch radius 1.1 -> 1.8 (script default + Player prefab); shield visual stays at 0.9 m.
+- PlayerParry reads the click before projectiles move (`DefaultExecutionOrder(-50)`).
+- Removed the slide tunnel next to the spawn in Level 1 (A_Start) and Level 2 (A_OuterField): builder and scenes.
+  Rule from now on: no slide tunnel near the spawn in any map.
+
+## 2026-11-24 (7): Level 3 "The Library" (area 1)
+- New menu "Oxford Runner/Build Level 3 (Library)" (`LevelBuilder.Library.cs`, LevelBuilder is now partial). Enclosed
+  hall x -32..32, z 0..120: ground floor (0..12), ceiling slab with a 10 m hole over the rotunda (z 64), upper floor (13..28).
+- Area 1 "Ground Floor": spawn inside the shut entrance doors. Middle: red runner, 12 reading tables (benches, candles,
+  books), candle stands, rotunda with candle ring + lecterns. Sides: 7 m bookcase walls at x +-12.5 (slide-under shelves
+  in the gaps at z 36 / 92), 10 bookcase stacks per side (6 / 8 m), outer aisle along the floor-to-ceiling wall bookcases
+  (fallen bookcases to slide under at z 46 / 98), rolling ladders. Every bookcase is wall-runnable.
+- 4 floating mages (Enemy_Mage, kinematic, 30 HP, `Hover` bob, Hovl magic circle) over the stacks; waves 5 + 6.
+- Lighting: no sun; 6 chandeliers (procedural iron ring + Blue Olive candles, one pixel light each), wall torches
+  (LowPolyDungeons Light_08 + flickering light) on stone pilasters, warm ambient + dust fog.
+- New generated full-colour "Books" texture (book spines on shelves, 2 m tile, world-aligned) for any `*bookshelf*` material.
+- Area 2 "Upper Floor" placeholder: clearing area 1 lowers the spiral staircase (`DescendOnOpen`, new LevelManager gate
+  type) 13 m into the rotunda. The steps are visual; a hidden ramp of tilted colliders carries the player. Upstairs is an
+  empty lit hall with the exit portal (z 108) for now.
+- GameFlow campaign now Tutorial -> L1 -> L2 -> L3. `LightFlicker` for torches/chandeliers.
+- Level 3: ~900 scattered books (45 piles + loose) on the ground floor, merged by `MergeByMaterial` into 16 static
+  meshes (per material per 30 m band, no shadows). Meshes live in the scene file (Level3.unity ~18 MB).
+- Style rank + score (`UI/StyleMeter.cs`, added by LevelManager): ranks D Decent, C Cast Master, B Battle Mage, A 2nd Rate Mage,
+  S Sorcerer, SS Slinging Sorcerer, SSS Supreme Spellslinging Sovereign. Points for hit, kill, combo (hit on frozen/stunned),
+  airshot, parry, parry kill; hit taken knocks the meter down, death resets it, 5 s idle drains it. Score (x rank multiplier)
+  is per level (every level starts at D / 0); best per level saved (`BestScore_<scene>`) and shown on the main menu. Last 3 events shown under the rank (stacks x2..).
+- Style meter moved to the top-left.
+- Tutorial rebuilt as an enclosed dungeon (`LevelBuilder.Dungeon.cs`: stone hall, dark pit, skylights with a steep sun +
+  faint light shafts, torches). Wall-runnable walls = teal wood with glowing rune bands + diamond glyphs (`RunePanel`);
+  plain stone isn't runnable. Slide-jump runway 6 m -> 16 m. New spell school after the fireball range: Frost Lance,
+  Lightning Strike, Arcane Missiles, Arcane Nova rooms, each behind its own gate (harmless practice skeletons /
+  floating targets). Course now ends at z 281.
+- Tutorial lighting: skylights and light shafts removed. Solid ceiling with warm glowing panels between beams every 6 m,
+  shadowless straight-down sun + bright flat ambient, so the whole hall is evenly lit. Torches kept for warmth.
+- Tutorial checkpoint pads: flush with the floor and no collider (they snagged movement).
+- Spells now cast in SpellCaster.LateUpdate (execution order 50), after the controller applies this frame's mouse look;
+  before, shots used last frame's view and drifted off the crosshair while turning/moving. Wind-up spells too.
+- Parry: reflected bolts explode with the fireball blast (`PlayerParry.reflectedImpactVfx` = Fireball_Hit), blast radius >= 2.5 m.
+- LevelManager: `commandersPerArea`, `skeletonShare`. Level 2: 1 commander per area, 70% skeletons, waves 5+6 / 5+6+6 / 6+7,
+  4 per spawn point. Garrison enemies (all levels) are 1.35x bigger with a Hovl Buff aura, an orange light, an additive
+  halo and a tall beam (`GarrisonGlow.mat`) so the last ones are easy to find. Builder sets this via `SetGarrisonAura`.
