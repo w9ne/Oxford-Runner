@@ -30,7 +30,8 @@ public static class MenuBuilder
         cam.clearFlags = CameraClearFlags.SolidColor;
         cam.backgroundColor = new Color(0.05f, 0.06f, 0.12f);
 
-        new GameObject("MainMenu", typeof(MainMenu));
+        new GameObject("MainMenu", typeof(MainMenu)).GetComponent<MainMenu>().wallTexture =
+            AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Materials/Levels/Textures/Wood.png");
 
         EditorSceneManager.SaveScene(scene, MenuScenePath);
 

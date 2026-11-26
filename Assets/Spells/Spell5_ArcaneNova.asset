@@ -16,6 +16,8 @@ MonoBehaviour:
   cooldown: 6
   uiColor: {r: 0.85, g: 0.95, b: 1, a: 1}
   gesture: 4
+  castSound: {fileID: 0}
+  hitSound: {fileID: 0}
   castTime: 0.3
   castMoveMultiplier: 0.25
   radius: 10

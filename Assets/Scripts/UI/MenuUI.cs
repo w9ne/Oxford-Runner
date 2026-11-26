@@ -95,7 +95,11 @@ public static class MenuUI
         colors.colorMultiplier = 2.5f;
         colors.fadeDuration = 0.06f;
         button.colors = colors;
-        button.onClick.AddListener(() => onClick());
+        button.onClick.AddListener(() => { Sfx.Play(Sfx.Bank.uiClick, 0.7f, 0f); onClick(); });
+        var hover = rt.gameObject.AddComponent<EventTrigger>();   // a soft tick when the cursor lands on it
+        var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+        enter.callback.AddListener(_ => Sfx.Play(Sfx.Bank.uiHover, 0.4f, 0.03f));
+        hover.triggers.Add(enter);
 
         // Thin accent strip on the left edge.
         var strip = Rect(rt, "Strip", Vector2.zero, new Vector2(6f, 0f), Accent);

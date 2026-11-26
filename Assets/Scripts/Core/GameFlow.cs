@@ -9,6 +9,13 @@ public static class GameSettings
     public const float MinSensitivity = 0.2f;
     public const float MaxSensitivity = 10f;
 
+    /// <summary>The name runs are saved under on the leaderboard (asked before a campaign starts).</summary>
+    public static string PlayerName
+    {
+        get => PlayerPrefs.GetString("PlayerName", "");
+        set { PlayerPrefs.SetString("PlayerName", Leaderboard.Clean(value)); PlayerPrefs.Save(); }
+    }
+
     public static float MouseSensitivity
     {
         get => PlayerPrefs.GetFloat(SensitivityKey, DefaultSensitivity);

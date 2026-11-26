@@ -16,6 +16,8 @@ MonoBehaviour:
   cooldown: 0.8
   uiColor: {r: 0.45, g: 0.7, b: 1, a: 1}
   gesture: 2
+  castSound: {fileID: 8300000, guid: f1cb5d83282f2904a85f73111d068616, type: 3}
+  hitSound: {fileID: 0}
   castTime: 0
   castMoveMultiplier: 1
   range: 60
@@ -25,9 +27,6 @@ MonoBehaviour:
   skyHeight: 30
   knockback: 6
   stunDuration: 1
-  jumps: 0
-  jumpRadius: 9
-  damageFalloff: 0.75
   boltColor: {r: 0.45, g: 0.7, b: 1, a: 1}
   boltWidth: 0.35
   hitVfx: {fileID: 7695199487361797165, guid: 9c501dd6441ccc9dbb658fe176021c1b, type: 3}

@@ -261,7 +261,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 393206}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -148619,6 +148619,80 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 834964546}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1001 &836006357
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 889963655}
+    m_Modifications:
+    - target: {fileID: 5516487406859467972, guid: 45e0f06c750176947862c10346226439, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 2.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5516487406859467972, guid: 45e0f06c750176947862c10346226439, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 2.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5516487406859467972, guid: 45e0f06c750176947862c10346226439, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 2.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5516487406859467972, guid: 45e0f06c750176947862c10346226439, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5516487406859467972, guid: 45e0f06c750176947862c10346226439, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 2.25
+      objectReference: {fileID: 0}
+    - target: {fileID: 5516487406859467972, guid: 45e0f06c750176947862c10346226439, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5516487406859467972, guid: 45e0f06c750176947862c10346226439, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5516487406859467972, guid: 45e0f06c750176947862c10346226439, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5516487406859467972, guid: 45e0f06c750176947862c10346226439, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5516487406859467972, guid: 45e0f06c750176947862c10346226439, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5516487406859467972, guid: 45e0f06c750176947862c10346226439, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5516487406859467972, guid: 45e0f06c750176947862c10346226439, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5516487406859467972, guid: 45e0f06c750176947862c10346226439, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5607819269926399345, guid: 45e0f06c750176947862c10346226439, type: 3}
+      propertyPath: m_Name
+      value: Portal blue
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 45e0f06c750176947862c10346226439, type: 3}
+--- !u!4 &836006358 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 5516487406859467972, guid: 45e0f06c750176947862c10346226439, type: 3}
+  m_PrefabInstance: {fileID: 836006357}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &836256107
 GameObject:
   m_ObjectHideFlags: 0
@@ -157668,6 +157742,7 @@ Transform:
   - {fileID: 393207}
   - {fileID: 1254700216}
   - {fileID: 1196621846}
+  - {fileID: 836006358}
   m_Father: {fileID: 1493654226}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &890230483
@@ -234715,7 +234790,7 @@ Transform:
   m_GameObject: {fileID: 1335321575}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.8384922, z: -0, w: 0.54491365}
-  m_LocalPosition: {x: -45, y: 1.05, z: 45}
+  m_LocalPosition: {x: -40.5, y: 1.05, z: 37.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -240787,7 +240862,7 @@ Transform:
   m_GameObject: {fileID: 1375900760}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.9547808, z: -0, w: -0.29731062}
-  m_LocalPosition: {x: 20, y: 1.05, z: 47}
+  m_LocalPosition: {x: 29, y: 1.05, z: 41}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -269551,7 +269626,7 @@ Transform:
   m_GameObject: {fileID: 1528606595}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.94962025, z: -0, w: 0.31340298}
-  m_LocalPosition: {x: -20, y: 1.05, z: 46}
+  m_LocalPosition: {x: -32, y: 1.05, z: 37}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -271527,11 +271602,15 @@ MonoBehaviour:
     triggerArea:
       m_Center: {x: 0, y: 8, z: 25}
       m_Extent: {x: 55, y: 20, z: 35}
+    triggerIgnore:
+      m_Center: {x: 0, y: 0, z: 0}
+      m_Extent: {x: 0, y: 0, z: 0}
     spawnPoints:
     - {fileID: 1528606596}
     - {fileID: 1375900761}
     - {fileID: 1335321576}
     - {fileID: 1576428032}
+    mageSpawnPoints: []
     waves:
     - enemyCount: 5
       enemyHealth: 50
@@ -271544,6 +271623,8 @@ MonoBehaviour:
     garrison:
     - {fileID: 1538500223}
     - {fileID: 431945142}
+    skeletonShare: -1
+    garrisonWakesOnEnter: 0
     gates: []
     closeOnEnter: []
     checkpoint: {fileID: 0}
@@ -271552,12 +271633,16 @@ MonoBehaviour:
     triggerArea:
       m_Center: {x: 0, y: 8, z: 98}
       m_Extent: {x: 55, y: 20, z: 33}
+    triggerIgnore:
+      m_Center: {x: 0, y: 0, z: 0}
+      m_Extent: {x: 0, y: 0, z: 0}
     spawnPoints:
     - {fileID: 526569150}
     - {fileID: 1358540348}
     - {fileID: 1051040477}
     - {fileID: 1140906709}
     - {fileID: 1138857656}
+    mageSpawnPoints: []
     waves:
     - enemyCount: 5
       enemyHealth: 55
@@ -271576,6 +271661,8 @@ MonoBehaviour:
     - {fileID: 1665808767}
     - {fileID: 1660159859}
     - {fileID: 813078578}
+    skeletonShare: -1
+    garrisonWakesOnEnter: 0
     gates:
     - {fileID: 301401208}
     - {fileID: 1462823592}
@@ -271586,11 +271673,15 @@ MonoBehaviour:
     triggerArea:
       m_Center: {x: 0, y: 8, z: 165}
       m_Extent: {x: 55, y: 20, z: 28}
+    triggerIgnore:
+      m_Center: {x: 0, y: 0, z: 0}
+      m_Extent: {x: 0, y: 0, z: 0}
     spawnPoints:
     - {fileID: 373232051}
     - {fileID: 1101492000}
     - {fileID: 1035426350}
     - {fileID: 444198477}
+    mageSpawnPoints: []
     waves:
     - enemyCount: 6
       enemyHealth: 60
@@ -271609,6 +271700,8 @@ MonoBehaviour:
     - {fileID: 1657837771}
     - {fileID: 789489222}
     - {fileID: 312417173}
+    skeletonShare: -1
+    garrisonWakesOnEnter: 0
     gates:
     - {fileID: 510696483}
     - {fileID: 1416798289}

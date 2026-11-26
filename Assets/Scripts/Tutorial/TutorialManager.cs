@@ -16,7 +16,6 @@ public class TutorialManager : MonoBehaviour
     public static TutorialManager Instance { get; private set; }
 
     [SerializeField] private FirstPersonController player;
-    [SerializeField] private float resultsDuration = 3.5f;
     [SerializeField] private Color accent = new Color(1f, 0.78f, 0.3f);
 
     private TutorialStep[] steps;
@@ -120,13 +119,7 @@ public class TutorialManager : MonoBehaviour
         LayoutCard();
         if (promptFade != null) StopCoroutine(promptFade);
         promptFade = StartCoroutine(Pop(promptGroup));
-        StartCoroutine(LoadAfter(nextScene, resultsDuration));
-    }
-
-    private IEnumerator LoadAfter(string scene, float delay)
-    {
-        yield return new WaitForSeconds(delay);
-        SceneManager.LoadScene(scene);
+        PortalFall.Begin(nextScene, null, "TUTORIAL COMPLETE", FormatTime(time) + (newBest ? "  NEW BEST!" : "") + $"     Best {FormatTime(best)}");
     }
 
     public static string FormatTime(float seconds)

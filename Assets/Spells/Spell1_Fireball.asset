@@ -16,6 +16,8 @@ MonoBehaviour:
   cooldown: 0.7
   uiColor: {r: 1, g: 0.6, b: 0.2, a: 1}
   gesture: 0
+  castSound: {fileID: 8300000, guid: c91fcf414acc0344cb03b13996f1bf3b, type: 3}
+  hitSound: {fileID: 8300000, guid: a652877b012108e41871f867ada9f176, type: 3}
   castTime: 0
   castMoveMultiplier: 1
   projectilePrefab: {fileID: 6595125907547415685, guid: 700c35f1748c0dcc2861ebe8291d4054, type: 3}

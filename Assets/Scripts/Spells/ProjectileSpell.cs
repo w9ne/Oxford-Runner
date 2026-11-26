@@ -80,6 +80,7 @@ public class ProjectileSpell : Spell
     public SpellProjectile Fire(Vector3 origin, Vector3 direction, Transform owner, Faction faction, IDamageable lockedTarget = null)
     {
         if (projectilePrefab == null) { Debug.LogWarning($"{name}: no projectile prefab assigned."); return null; }
+        if (faction != Faction.Player) Sfx.At(castSound, origin, 0.8f);   // the player's own casts play from SpellCaster
         Quaternion aim = Quaternion.LookRotation(direction);
         SpellProjectile first = null;
         for (int i = 0; i < projectileCount; i++)

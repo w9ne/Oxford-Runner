@@ -22,6 +22,11 @@ public abstract class Spell : ScriptableObject
     [Tooltip("Left-hand motion when this spell is cast.")]
     public CastGesture gesture = CastGesture.Thrust;
 
+    [Header("Sound")]
+    public AudioClip castSound;
+    [Tooltip("Projectile impact / spell landing.")]
+    public AudioClip hitSound;
+
     [Header("Casting")]
     [Tooltip("Wind-up before the spell goes off (0 = instant).")]
     [Min(0f)] public float castTime = 0f;

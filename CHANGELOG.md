@@ -1,5 +1,126 @@
 # Oxford Runner: Development Log
 
+## 2026-11-25 (soft-lock fixes, cleanup, compression)
+
+- Tutorial's portal fall blocks the pause menu (`ShowingResults`): quitting mid-load could hang a second
+  scene load and leave the falling wall on screen.
+- Pause menu: "Unstick Self" sends you back to your last checkpoint (level start if none; in the boss fight,
+  the hallway, which resets the fight).
+- Cleanup: 578 asset files (~138 MB: Hovl / Kevin Iglesias / Blue Olive demo scenes, unused effects,
+  animations, models, sounds) that no build scene, Resources, prefab, spell, material or builder script
+  uses were moved out of the project to `../OxfordRunner_UnusedAssets_Backup/` (same folder layout, with
+  .meta files, so they can be moved back). Assets 288 MB to 150 MB. All scenes re-checked: no missing
+  scripts, references, meshes or materials.
+- Build size: 35 sound effects to Vorbis (q 0.55), mono; 11 large prop textures capped (books, candles,
+  book stand 2048 to 512; Monster Pack palette to 1024). Music already streams.
+
+## 2026-11-25 (sound and music)
+
+- Sound system: `Sfx` (persistent; pooled 2D voices for the player, 3D voices for the world with a 6-60 m
+  linear falloff, music on two crossfading sources) and `SoundBank` (Resources). Oxford Runner > Setup
+  Sounds fills it: your sounds (Assets/Sound) for dash, parry, player hit, footsteps, the Arcane Blast boom,
+  Level 1 / Level 3 / boss music; Leohpaz RPG Essentials for the rest. Music streams.
+- Music: menu and Level 3 = level 3 OST, Tutorial / Level 1 / Level 2 = level 1 OST (one track carries on
+  across the three), boss = final boss OST from the moment you enter the arena (back to Level 3's on a
+  reset, fades out when the boss dies).
+- `PlayerSounds` (added by Sfx, reads the controller): footsteps (pace follows speed, also on walls), jump /
+  double / wall jump, landing (louder after a long fall), dash, slide, wall grab, hit, death, parry, parry
+  raise, every cast, respawn.
+- Arcane Blast: the tail of a charge-up sound is timed to end on the blast, then your ground-shake boom. The
+  boss's blast (0.8 s) and its 3 s charge do the same.
+- Spells carry cast / hit sounds (fireball, frost, lightning, missiles, enemy bolts). Enemies: hit, death,
+  sword swing, beam-in. World: area start, gates and doors, torches, level clear, portal, drop-in, victory.
+  UI: button hover / click, pause / unpause, missile lock.
+- More screen shake: every hit you take kicks the camera (1.5-5 deg by damage); your Arcane Blast 3.5 to 6
+  deg for 0.9 s; the boss's blast 2-6 deg by how close you are.
+
+## 2026-11-25 (rigged Monster Pack enemies, boss lock-on nerf)
+
+- Enemy models: Monster Pack's own rigs. Its Blender source has rigged versions; `Tools/export_monster_rigs.py`
+  exports Skeleton, Skell Mage and Orc (each moved to the origin) to `Assets/Monster Pack/Rigged/`, imported as
+  Humanoid with the rigify bones mapped by hand (spine = Hips ... spine.005 = Head). Kevin Iglesias' clips drive
+  them through the new `EnemyBody.controller`: 8-way run blend by velocity, idle when still, a one-hand cast on
+  every wind-up. 2.6 m tall (a head taller than you; capsule grows upward to match). Mages / floating mages /
+  tower casters = skeleton mage, skeletons = skeleton with the sword in the right hand bone, commanders = orc
+  with a dark aura at 1.3x (~3.4 m). The whole body glows as the attack telegraph (Enemy falls back to the
+  skinned mesh when there's no Face). The unrigged T-pose meshes and a rigged-human stopgap were dropped.
+- Boss: a missile lock on it breaks after 1.5 s (`Enemy.lockHoldTime`), and missiles already locked on it
+  drop to plain homing after 1.5 s of flight.
+
+## 2026-11-25 (portal fall transitions, level fixes)
+
+- Portals no longer cut straight to the next scene. `PortalFall`: the screen becomes a rune bookshelf wall
+  rushing upward (you're falling past it) while the next scene loads in the background, with the score card
+  on top (LevelResults, dim lowered so the wall shows; the tutorial gets its own small card). The wall drops
+  in from the top (0.35 s). Space once loaded: the scene switches under the wall, then the wall whips down off
+  the bottom of the screen (0.35 s, eased in), the illusion of dropping into the area. No real drop, no fades.
+  Used by every portal.
+- `RuneWall`: the endless rune wall, shared by the main menu (pans right) and the fall (drops fast).
+  Bookshelf texture copied to `Resources/PortalWall.png`.
+- Tutorial and Level 2 portals get the current Hovl swirl and light (were the old flat surface).
+- Level 1: the stacked grass pyramid in the hills (enemies got stuck) is now a wall-run wall.
+- Level 2 area 1: three spawn points moved into open ground (clearance 3.7-7 m to 11-12 m from walls).
+
+## 2026-11-25 (styled main menu, names, leaderboard)
+
+- Main menu restyled: behind it a close-up rune wall (the tutorial's blue-tinted wall-run wood, two glowing
+  bands, a row of diamonds) pans past endlessly, the runes slowly pulsing; dark left fade; big two-line title
+  with a gold rule; menu down the left (Play, Tutorial, Leaderboard, Settings, Exit); best scores at the
+  bottom. (A top-down / angled level-map background was tried and dropped.)
+- Play asks for your name first (prefilled with the last one, Enter to start). Saved in PlayerPrefs.
+- `Leaderboard`: top 10 runs (name, total), saved in PlayerPrefs. Main-menu tab and victory screen show
+  place / name / points / run rank (total vs the levels' SSS scores added up); the victory screen marks your
+  new place. Test `LeaderboardKeepsTopTenHighestFirst` replaces the old top-5 test.
+- The boss bar reads "{NAME}'S SHADOW".
+
+## 2026-11-25 (final boss: your shadow)
+
+- `Boss` (on an `Enemy` with `brainControlled`): 200 HP black capsule with red eyes and a dark aura
+  (`Enemy_Boss` prefab, Oxford Runner > Setup Boss; shortcut until the player model in black).
+  Routine: keep 10-18 m and alternate Fireball / Arcane Missiles, close in for an Arcane Blast (0.8 s
+  wind-up with the nova effect), then 40% a 3 s charge (giant magic circle) that releases 3 fireballs and
+  2 missile volleys at once (red energy blast). Dashes every ~1 s, slides sideways under incoming spells,
+  double-jumps. Every 10 s a 1.2 s parry (pink shield) reflects your shots; parry those back and it is
+  stunned 5 s. Stun / freeze cancels the blast or charge. Its fireballs have 35% of the particles.
+  Boss shots: parryable, fireball 12, missiles 6 each (homing 60), blast 25.
+- Missile lock-on takes 4x longer on the boss (`Enemy.lockTimeScale`).
+- Boss model: the player's hero (Player_01, idle animation) all in black (`Enemy_Shadow`) instead of the
+  capsule. Spawns in the middle of the arena. Takes no damage until its bar has filled (`Enemy.invulnerable`,
+  set again on reset).
+- Boss runs with the player's locomotion blend (strafe / run clips by velocity, legs still while sliding,
+  frozen pose when frozen). Red point light on it (`ShadowGlow`) so the black body is easy to spot.
+- Boss: 350 HP, dash cooldown 1.1 s to 2.4 s, homing projectiles (Arcane Missiles, parried or not) do 35%
+  damage to it (`DamageInfo.homing`, `Enemy.homingDamageScale`): a parried missile volley was a one-shot.
+- `BossFight`: entering the arena heals you to full, shuts the door, sets the hallway checkpoint and shows a
+  top-of-screen boss bar that fills before the fight starts. Dying in the fight respawns you in the hallway
+  (no death screen), resets the boss and opens the door. Death: 5 small blasts, one big blast, then
+  `VictoryScreen`: this run's score and rank per level (saved by each level-end card), total, and a local
+  top-5 leaderboard (test: `LeaderboardKeepsTopFiveHighestFirst`).
+- Reflect can leave a projectile parryable (boss parries); `Enemy.Stun`, `Enemy.ResetState`, `destroyOnDeath`.
+
+## 2026-11-25 (torch hall to the boss door)
+
+- Level 3: the short corridor and exit portal behind the metal door are replaced by a 90 m library hall
+  (bookcases between stone pilasters, red runner, beams) ending at a giant shut `BossDoor`. Patched in place.
+- Stepping into the hall clears the level: `TorchHall` shows the rank card for 7 s while you keep walking
+  (`LevelResults.Show(..., autoClose)`: no pause, no scene change). The style best still saves.
+- The 16 pilaster torches start unlit and flare up 12 m ahead of the player. Past 3/4 of the hall the upper
+  hall (`B_UpperHall`) is destroyed (moved from the door trigger).
+- Rank card in the hall: 7 s to 6 s. Esc pause is blocked while it shows.
+- Spiral stair hole: floor over the +x side (from x 1.2, head room for the climb) and an iron railing round the
+  rest, open only where the top step meets the landing (`StairHoleCover`), so you can't fall back down.
+- Boss door: "Enter? [E]" prompt within 7 m (`DoorPrompt`); E swings the doors open (85 deg, 3.5 s).
+- Boss arena (`D_BossArena`, `LevelBuilder.BossArena`), no boss yet: round, 30 m radius, walled with two tiers
+  of wall-run bookcases (rune strips), 8 floating bookcases in a zig-zag ring for wall-run chains, giant
+  chandelier (library one at 3x), broken roof with 6 holes (spotlights + light shafts + rubble), a broken spiral
+  staircase floating tilted 45 deg on the right and one crashed along the left wall (standable, centre 17 m kept
+  clear), 6 fallen wizards by the door, torn carpets, scorch marks and 260 books.
+- Torch hall's last wall pieces no longer poke 8 m into the arena.
+- Arena radius 30 to 36 m (38 wall pieces, 12x12 roof tiles, floating ring at 19/25 m, staircases moved out).
+  Hand-placed chandelier candles kept (chandelier moved with the new centre).
+- 6 bookcases lying flat and floating (runes on top) as landing platforms between wall-runs.
+- Fallen wizards: the player model (rest pose, no animator) tinted purple (`L3_FallenWizard`), on their backs.
+
 ## 2026-11-24 (rune walls, 1 HP casters, firing squad)
 
 - Every wall-runnable surface in Levels 1-3 gets tutorial rune strips (glow bands + diamonds): `LevelBuilder.RuneTrim`,

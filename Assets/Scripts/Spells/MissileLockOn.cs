@@ -16,7 +16,7 @@ public class MissileLockOn : MonoBehaviour
     private SpellCaster caster;
     private Camera cam;
     private Enemy candidate, locked;
-    private float progress;
+    private float progress, lockedAt;
     private GUIStyle labelStyle;
     private readonly List<Enemy> visible = new List<Enemy>();
 
@@ -52,14 +52,15 @@ public class MissileLockOn : MonoBehaviour
             if (angle < bestAngle) { bestAngle = angle; best = e; }
         }
 
-        if (locked != null && (locked.IsDead || (locked.transform.position - eye).magnitude > spell.lockRange * 1.5f))
+        if (locked != null && (locked.IsDead || (locked.transform.position - eye).magnitude > spell.lockRange * 1.5f
+                               || (locked.lockHoldTime > 0f && Time.time - lockedAt > locked.lockHoldTime)))   // the boss shakes a lock off
             locked = null;
 
         if (best != null && best != locked)
         {
             if (best != candidate) { candidate = best; progress = 0f; }
-            progress += Time.deltaTime / Mathf.Max(0.01f, spell.lockTime);
-            if (progress >= 1f) { locked = best; candidate = null; progress = 0f; }
+            progress += Time.deltaTime / Mathf.Max(0.01f, spell.lockTime * best.lockTimeScale);
+            if (progress >= 1f) { locked = best; lockedAt = Time.time; candidate = null; progress = 0f; Sfx.Play(Sfx.Bank.lockOn, 0.5f, 0f); }
         }
         else { candidate = null; progress = 0f; }
     }

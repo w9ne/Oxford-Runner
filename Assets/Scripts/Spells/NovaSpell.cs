@@ -25,6 +25,7 @@ public class NovaSpell : Spell
 
     public override void BeginCast(SpellCaster caster)
     {
+        Sfx.Tail(Sfx.Bank.blastCharge, castTime + 0.1f);   // the end of the charge-up lands on the blast
         if (vfx != null) SpawnVfx(caster.transform, true);
     }
 
@@ -77,7 +78,8 @@ public class NovaSpell : Spell
         if (vfx != null && castTime <= 0f) SpawnVfx(owner, false);
 
         // Weight: the ground shakes and a red flash lights the whole blast.
-        CameraShake.Shake(3.5f, 0.55f);
+        Sfx.Play(Sfx.Bank.blastBoom, 1f, 0f);
+        CameraShake.Shake(6f, 0.9f);   // the ground heaves
         var flash = new GameObject("NovaFlash").AddComponent<FadingLight>();
         flash.transform.position = center + Vector3.up * 1.5f;
         flash.Begin(flashColor, radius * 1.8f, 12f, 0.6f);

@@ -18,6 +18,7 @@ public struct DamageInfo
     public Vector3 knockback;   // velocity change, m/s (Arcane Nova)
     public float freezeDuration; // seconds frozen solid (Frost Lance)
     public float stunDuration;   // seconds stopped in place (Lightning)
+    public bool homing;          // from a homing / locked-on projectile (Arcane Missiles)
 
     public DamageInfo(float amount, Faction source, Vector3 point, bool reflected = false)
     {
@@ -30,6 +31,7 @@ public struct DamageInfo
         knockback = Vector3.zero;
         freezeDuration = 0f;
         stunDuration = 0f;
+        homing = false;
     }
 }
 

@@ -17,7 +17,7 @@ public class GateDoor : MonoBehaviour
         rightShut = rightHinge.localRotation;
     }
 
-    public void Open() { if (!open) { open = true; Swing(1f); } }
+    public void Open() { if (!open) { open = true; Swing(1f); Sfx.At(Sfx.Bank.gateOpen, transform.position, 0.9f, 0f); } }
 
     /// <summary>Swings shut again (e.g. behind the player as they go through), even if still opening.</summary>
     public void Close() { if (open) { open = false; Swing(0f); } }

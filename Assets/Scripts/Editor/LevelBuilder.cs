@@ -92,8 +92,7 @@ public static partial class LevelBuilder
             Tower(c, new Vector3(22f, 0f, 122f), 9f, 250f),
             Tower(c, new Vector3(0f, 0f, 152f), 12f, 180f),
         };
-        Terrace(c, new Vector3(-14f, 0f, 135f), new Vector3(12f, 2f, 10f));
-        Terrace(c, new Vector3(-14f, 2f, 135f), new Vector3(6f, 2f, 5f));
+        FreeWall(c, new Vector3(-14f, 0f, 135f), 10f, 0f);   // was a stacked grass pyramid: enemies got stuck on it
         Terrace(c, new Vector3(15f, 0f, 145f), new Vector3(10f, 2.5f, 12f));
         FreeWall(c, new Vector3(-4f, 0f, 118f), 10f, 30f);
         FreeWall(c, new Vector3(8f, 0f, 132f), 10f, -30f);

@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Linq;
+using UnityEditor;
 using UnityEngine;
 
 /// <summary>
@@ -16,14 +18,15 @@ public static partial class LevelBuilder
     private const float BalconyY = 19f, DoorTop = 27f, HallZ0 = 26f, BalconyIn = 20f, BackBalconyZ = 106f;
     private static Material doorMetalMat, sootMat;
 
-    /// <summary>Builds area 2 and area 3 (the door corridor). Returns the exit portal.</summary>
-    private static GameObject UpperHall(Transform a1, Transform a2, GameObject stairs)
+    /// <summary>Builds area 2 and area 3 (the torch hall to the boss door).</summary>
+    private static void UpperHall(Transform a1, Transform a2, GameObject stairs)
     {
         doorMetalMat = Mat("L3_DoorMetal", new Color(0.34f, 0.34f, 0.38f));
         sootMat = Mat("L3_Soot", new Color(0.06f, 0.05f, 0.05f));
         var rng = new System.Random(3304);
 
         var hatch = Hatch(a2, stairs);
+        StairHoleCover(a2);
         Collapse(a2, rng);
         Balconies(a2, rng);
         GrandStaircase(a2);
@@ -34,7 +37,10 @@ public static partial class LevelBuilder
         var torches = new[] { GiantTorch(a2, -1), GiantTorch(a2, 1) };
         var a3 = Group("C_SealedDoor");
         var door = MetalDoor(a3);
-        var portal = DoorCorridor(a3);
+        var bossDoor = TorchHall(a3, a2.gameObject);
+        var arena = Group("D_BossArena");
+        BossArena(arena, new System.Random(4405));
+        PlaceBoss(arena, bossDoor);
 
         var garrison = new List<Enemy>
         {
@@ -70,18 +76,43 @@ public static partial class LevelBuilder
         hall.unloadOnEnter.Add(a1.gameObject);   // the ground floor is shut away under the hatch
 
         // Area 3: clearing the hall opens the door and lights the giant torches. Walking through shuts the door
-        // behind you and unloads the hall. (z > 125: clear of the door leaves' swing.)
+        // behind you and clears the level (TorchHall shows the rank card and unloads the hall further on). (z > 125: clear of the door leaves' swing.)
         var sealed_ = Encounter("Sealed Door", a3, new Vector3(0f, BalconyY, 132.5f), new Vector2(8f, 15f), new List<Enemy>(), new Vector3[0]);
         sealed_.triggerArea = new Bounds(new Vector3(0f, BalconyY + 4f, 132.5f), new Vector3(8f, 8f, 15f));
         sealed_.gates.Add(door);
         sealed_.gates.AddRange(torches);
         sealed_.closeOnEnter.Add(door);
-        sealed_.unloadOnEnter.Add(a2.gameObject);
         var cp3 = new GameObject("Checkpoint_SealedDoor").transform;
         cp3.SetParent(a3, false);
         cp3.position = new Vector3(0f, BalconyY + 1.05f, 127f);
         sealed_.checkpoint = cp3;
-        return portal;
+    }
+
+    // The stairs only come up through the -x half of the hole (their last turn): floor over the +x half, and an
+    // iron railing round the rest, open where the top step meets the landing (z > 0.8), so you can't fall back in.
+    private static void StairHoleCover(Transform parent)
+    {
+        var g = Graybox.Group(parent, "StairHoleCover");
+        const float x0 = 1.2f;   // head room for the step crossing x = 0 just under the floor
+        Slab(g, "UpperFloor", x0, HoleHalf, RotundaZ - HoleHalf, RotundaZ + HoleHalf, FloorTop, 1f, groundMat);
+        float h = HoleHalf, z = RotundaZ;
+        Railing(g, new Vector3(x0, FloorTop, z - h), new Vector3(x0, FloorTop, z + 0.8f));
+        Railing(g, new Vector3(x0, FloorTop, z - h), new Vector3(-h, FloorTop, z - h));
+        Railing(g, new Vector3(-h, FloorTop, z - h), new Vector3(-h, FloorTop, z + h));
+        Railing(g, new Vector3(-h, FloorTop, z + h), new Vector3(x0, FloorTop, z + h));
+    }
+
+    // Iron posts and a top rail from a to b (floor level), with one invisible wall to stop you.
+    private static void Railing(Transform parent, Vector3 a, Vector3 b)
+    {
+        Vector3 d = b - a;
+        float yaw = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg, len = d.magnitude;
+        int posts = Mathf.CeilToInt(len / 1.2f);
+        for (int i = 0; i <= posts; i++)
+            Object.DestroyImmediate(Box(parent, "RailPost", Vector3.Lerp(a, b, (float)i / posts) + Vector3.up * 0.55f, new Vector3(0.08f, 1.1f, 0.08f), ironMat).GetComponent<Collider>());
+        Object.DestroyImmediate(Box(parent, "Handrail", (a + b) * 0.5f + Vector3.up * 1.1f, new Vector3(0.08f, 0.08f, len), ironMat, false, yaw).GetComponent<Collider>());
+        var guard = Box(parent, "RailGuard", (a + b) * 0.5f + Vector3.up * 0.7f, new Vector3(0.1f, 1.4f, len), null, false, yaw);
+        Object.DestroyImmediate(guard.GetComponent<MeshRenderer>());
     }
 
     // Two plank-and-iron halves hidden in the floor either side of the stair hole; they slide shut over it.
@@ -594,17 +625,287 @@ public static partial class LevelBuilder
         return g.gameObject;
     }
 
-    /// <summary>Behind the door: a short stone corridor (the boss room goes here later) with the exit portal.</summary>
-    private static GameObject DoorCorridor(Transform parent)
+    private const float HallEnd = LibLength + 92f, HallTop = BalconyY + 15f, HallHalfW = 7f;
+
+    /// <summary>
+    /// Behind the metal door: a long library hall (bookcases between stone pilasters, red runner, beams) to the
+    /// giant boss-room door. The pilaster torches start unlit and TorchHall lights them as you walk; past 3/4 of
+    /// the way the upper hall (unload) is destroyed.
+    /// </summary>
+    private static GateDoor TorchHall(Transform parent, GameObject unload)
     {
-        var g = Graybox.Group(parent, "C_DoorCorridor");
-        const float z0 = LibLength + 2f, z1 = LibLength + 20f;
-        Slab(g, "CorridorFloor", -5f, 5f, LibLength, z1, BalconyY, 1f, stoneMat);
-        Slab(g, "CorridorCeiling", -5f, 5f, LibLength, z1, DoorTop + 1f, 1f, stoneMat);
+        var g = Graybox.Group(parent, "C_TorchHall");
+        const float z0 = LibLength + 2f;
+        Slab(g, "HallFloor", -HallHalfW, HallHalfW, LibLength, HallEnd, BalconyY, 1f, stoneMat);
+        Slab(g, "HallCeiling", -HallHalfW, HallHalfW, LibLength, HallEnd, HallTop + 1f, 1f, roofMat);
+        Box(g, "HallFront", new Vector3(0f, (Roof + 1f + HallTop + 1f) * 0.5f, LibLength + 1f), new Vector3(HallHalfW * 2f, HallTop - Roof, 2f), stoneMat);   // above the library roof
+        Box(g, "Runner", new Vector3(0f, BalconyY + 0.01f, (z0 + HallEnd) * 0.5f), new Vector3(3f, 0.02f, HallEnd - z0), rugMat);
+        var torches = new List<Ignite>();
         for (int s = -1; s <= 1; s += 2)
-            Box(g, "CorridorWall", new Vector3(s * 5.5f, (BalconyY + DoorTop + 1f) * 0.5f, (z0 + z1) * 0.5f), new Vector3(1f, DoorTop + 1f - BalconyY, z1 - z0), stoneMat);
-        Box(g, "CorridorEnd", new Vector3(0f, (BalconyY + DoorTop + 1f) * 0.5f, z1 + 0.5f), new Vector3(12f, DoorTop + 1f - BalconyY, 1f), stoneMat);
-        PointLight(g, "CorridorLight", new Vector3(0f, DoorTop - 1f, z0 + 9f), new Color(1f, 0.35f, 0.25f), 14f, 1.4f, false, 0.2f);
-        return Portal(g, new Vector3(0f, BalconyY, z0 + 12f), 180f);
+        {
+            for (float z = LibLength; z < HallEnd; z += 20f)
+            {
+                float len = Mathf.Min(20f, HallEnd - z);   // the last piece stops at the arena
+                Box(g, "HallWall", new Vector3(s * (HallHalfW + 0.5f), (BalconyY + HallTop) * 0.5f, z + len * 0.5f), new Vector3(1f, HallTop - BalconyY, len), stoneMat);
+            }
+            for (float z = z0 + 4f; z < HallEnd - 6f; z += 10f)
+            {
+                Box(g, "Pilaster", new Vector3(s * (HallHalfW - 0.8f), (BalconyY + HallTop) * 0.5f, z), new Vector3(1.6f, HallTop - BalconyY, 1.4f), stoneMat);
+                torches.Add(HallTorch(g, new Vector3(s * (HallHalfW - 1.65f), BalconyY + 4.2f, z), s > 0 ? -90f : 90f));
+                if (z + 10f < HallEnd - 6f) Bookcase(g, new Vector3(s * (HallHalfW - 0.5f), BalconyY, z + 5f), 8.4f, 10f, 90f);
+            }
+        }
+        for (float z = z0 + 9f; z < HallEnd; z += 10f)
+            Box(g, "CeilingBeam", new Vector3(0f, HallTop - 0.4f, z), new Vector3(HallHalfW * 2f, 0.8f, 0.7f), roofMat);
+
+        // The boss-room door: giant, shut until you press E at it (DoorPrompt).
+        const float w = 11f, h = 13f;
+        var door = BuildGateDoor(g, HallEnd - 0.4f, w, h, doorMetalMat);
+        door.name = "BossDoor";
+        door.GetComponent<GateDoor>().openAngle = 85f;   // leaves stop short of the arena wall
+        door.GetComponent<GateDoor>().duration = 3.5f;   // heavy
+        door.transform.position += Vector3.up * BalconyY;
+        var prompt = new GameObject("BossDoorPrompt");
+        prompt.transform.SetParent(g, false);
+        prompt.transform.position = new Vector3(0f, BalconyY + 1f, HallEnd - 3f);
+        prompt.AddComponent<DoorPrompt>().door = door.GetComponent<GateDoor>();
+        for (int s = -1; s <= 1; s += 2)
+        {
+            Box(g, "Jamb", new Vector3(s * (w * 0.5f + 0.75f), (BalconyY + HallTop) * 0.5f, HallEnd - 0.5f), new Vector3(1.5f, HallTop - BalconyY, 1f), stoneMat);
+            WallTorch(g, new Vector3(s * (w * 0.5f + 0.75f), BalconyY + 5f, HallEnd - 1.05f), 180f);
+        }
+        Box(g, "Lintel", new Vector3(0f, (BalconyY + h + HallTop) * 0.5f, HallEnd - 0.5f), new Vector3(w, HallTop - BalconyY - h, 1f), stoneMat);
+        Prop(g, Dungeon + "WallDecor_05.prefab", new Vector3(0f, BalconyY + h + 0.6f, HallEnd - 1.05f), 180f, 2.4f);
+        PointLight(g, "BossDoorGlow", new Vector3(0f, BalconyY + 5f, HallEnd - 5f), new Color(1f, 0.3f, 0.2f), 16f, 2f, true, 0.15f);
+
+        var hall = g.gameObject.AddComponent<TorchHall>();
+        hall.torches = torches.OrderBy(t => t.transform.position.z).ToArray();
+        hall.unload = unload;
+        hall.unloadZ = LibLength + (HallEnd - LibLength) * 0.75f;
+        return door.GetComponent<GateDoor>();
+    }
+
+    // A wall torch that starts unlit: TorchHall flares it (Ignite) as the player gets close.
+    private static Ignite HallTorch(Transform parent, Vector3 pos, float yaw)
+    {
+        var t = Graybox.Group(parent, "HallTorch");
+        t.position = pos;
+        Prop(t, Dungeon + "Light_08.prefab", pos, yaw, 2f);
+        Vector3 forward = Quaternion.Euler(0f, yaw, 0f) * Vector3.forward;
+        var flame = Box(t, "Flame", pos + Vector3.up * 1.1f + forward * 0.35f, Vector3.one * 0.35f, flameMat);
+        flame.transform.rotation = Quaternion.Euler(45f, 0f, 35.26f);   // a corner points up
+        Object.DestroyImmediate(flame.GetComponent<Collider>());
+        flame.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        flame.isStatic = false;
+        var light = PointLight(t, "TorchLight", pos + Vector3.up * 1.3f + forward * 0.4f, Torchlight, 10f, 1.5f, false, 0f);
+        var ignite = t.gameObject.AddComponent<Ignite>();
+        ignite.flame = flame;
+        ignite.glow = light;
+        ignite.intensity = 1.5f;
+        flame.SetActive(false);
+        light.enabled = false;
+        return ignite;
+    }
+
+    // ------------------------------------------------------------------ boss arena
+    private const float ArenaR = 36f, ArenaTop = BalconyY + 24f;
+    private static Vector3 ArenaC => new Vector3(0f, BalconyY, HallEnd + ArenaR);
+
+    /// <summary>
+    /// Behind the boss door: a round arena walled with two tiers of wall-run bookcases, floating bookcases to chain
+    /// wall-runs, a giant chandelier, a broken roof letting light in, two wrecked spiral staircases (one floating
+    /// tilted 45 deg on the right, one crashed on the left, both off the open floor), and fallen wizards by the door.
+    /// </summary>
+    private static void BossArena(Transform g, System.Random rng)
+    {
+        float R(float a, float b) => a + (float)rng.NextDouble() * (b - a);
+        Vector3 c = ArenaC;
+        float y0 = BalconyY, wallH = ArenaTop - y0;
+        Slab(g, "ArenaFloor", -ArenaR - 2f, ArenaR + 2f, HallEnd, HallEnd + ArenaR * 2f + 2f, y0, 1f, groundMat);
+        var inlay = GameObject.CreatePrimitive(PrimitiveType.Cylinder);   // the round centre
+        inlay.name = "CentreCircle";
+        inlay.transform.SetParent(g, false);
+        inlay.transform.position = c + Vector3.up * 0.015f;
+        inlay.transform.localScale = new Vector3(18f, 0.01f, 18f);
+        inlay.GetComponent<Renderer>().sharedMaterial = stoneMat;
+        Object.DestroyImmediate(inlay.GetComponent<Collider>());
+
+        // Round wall: tangent bookcases in two tiers, stone behind; the 3 pieces facing the door are left out.
+        const int n = 38;
+        float seg = 2f * Mathf.PI * ArenaR / n;
+        for (int i = 0; i < n; i++)
+        {
+            float a = i * 360f / n;
+            Vector3 dir = Quaternion.Euler(0f, a, 0f) * Vector3.forward;
+            if (Mathf.Abs(Mathf.DeltaAngle(a, 180f)) < 12f) continue;   // the doorway (DoorWall)
+            Box(g, "ArenaWall", c + dir * (ArenaR + 1.6f) + Vector3.up * (wallH * 0.5f), new Vector3(seg + 0.6f, wallH, 1f), stoneMat, false, a);
+            Bookcase(g, c + dir * (ArenaR + 0.6f), seg + 0.2f, 11f, a, 1.2f);
+            Bookcase(g, c + dir * (ArenaR + 0.6f) + Vector3.up * 11.6f, seg + 0.2f, wallH - 12.2f, a, 1.2f);
+            if (i % 4 == 2) WallTorch(g, c + dir * (ArenaR - 0.15f) + Vector3.up * 6f, a + 180f);
+        }
+        for (int s = -1; s <= 1; s += 2)   // wall round the doorway, out to the bookcases
+            Box(g, "DoorWall", new Vector3(s * 10f, y0 + wallH * 0.5f, HallEnd + 1f), new Vector3(9f, wallH, 2f), stoneMat);
+        Box(g, "DoorWall", new Vector3(0f, (HallTop + ArenaTop) * 0.5f, HallEnd + 1f), new Vector3(11f, ArenaTop - HallTop, 2f), stoneMat);
+
+        // Floating bookcases in a zig-zag ring (alternate radius and height) to chain wall-runs.
+        for (int i = 0; i < 8; i++)
+        {
+            float a = i * 45f + 22.5f, r = i % 2 == 0 ? 19f : 25f;
+            Vector3 dir = Quaternion.Euler(0f, a, 0f) * Vector3.forward;
+            var b = Bookcase(g, c + dir * r + Vector3.up * (i % 2 == 0 ? 4f : 6.5f), 9f, 5f, a);
+            Box(b, "Bottom", c + dir * r + Vector3.up * (i % 2 == 0 ? 3.85f : 6.35f), new Vector3(9.3f, 0.3f, 1.3f), shelfWoodMat, false, a);
+        }
+        // Bookcases lying flat in between (books facing up, runes on top): landing platforms between wall-runs.
+        for (int i = 0; i < 6; i++)
+        {
+            float a = i * 60f, r = i % 2 == 0 ? 29f : 13f;
+            Vector3 dir = Quaternion.Euler(0f, a, 0f) * Vector3.forward, p = c + dir * r + Vector3.up * (i % 2 == 0 ? 8f : 5.5f);
+            var b = Bookcase(g, p, 8f, 3f, a);
+            b.RotateAround(p, Quaternion.Euler(0f, a, 0f) * Vector3.right, 90f);   // tip over onto its back
+            b.name = "LyingBookcase";
+        }
+
+        // Broken roof: tiles with holes, light shafts pouring through.
+        var shaft = Mat("L3_LightShaft", Color.white);
+        shaft.shader = Shader.Find("Sprites/Default");
+        shaft.color = new Color(1f, 0.92f, 0.75f, 0.07f);
+        var holes = new HashSet<(int, int)> { (2, 3), (7, 2), (9, 8), (2, 8), (5, 10), (10, 5) };
+        const float tile = 6.4f;
+        for (int ix = 0; ix < 12; ix++)
+            for (int iz = 0; iz < 12; iz++)
+            {
+                Vector3 p = new Vector3(-ArenaR - 2f + tile * (ix + 0.5f), ArenaTop + 0.5f, HallEnd + tile * (iz + 0.5f));
+                if (!holes.Contains((ix, iz))) { Box(g, "ArenaRoof", p, new Vector3(tile, 1f, tile), roofMat); continue; }
+                for (int k = 0; k < 3; k++)   // jagged beam ends round the hole
+                    Box(g, "BrokenBeam", p + new Vector3(R(-2.5f, 2.5f), -0.3f, R(-2.5f, 2.5f)), new Vector3(R(1.5f, 3f), 0.5f, 0.5f), roofMat, false, R(0f, 180f));
+                var light = new GameObject("RoofLight").AddComponent<Light>();
+                light.transform.SetParent(g, false);
+                light.transform.SetPositionAndRotation(p + Vector3.up * 2f, Quaternion.Euler(90f, 0f, 0f));
+                light.type = LightType.Spot;
+                light.spotAngle = 45f;
+                light.range = 40f;
+                light.intensity = 3f;
+                light.color = new Color(0.85f, 0.9f, 1f);
+                var beam = Box(g, "LightShaft", new Vector3(p.x, (y0 + ArenaTop) * 0.5f, p.z), new Vector3(4.5f, wallH, 4.5f), shaft);
+                Object.DestroyImmediate(beam.GetComponent<Collider>());
+                beam.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                for (int k = 0; k < 6; k++)   // what fell through
+                {
+                    float size = R(0.3f, 1.1f);
+                    var rub = Box(g, "Rubble", new Vector3(p.x + R(-3f, 3f), y0 + size * 0.3f, p.z + R(-3f, 3f)), Vector3.one * size, k < 4 ? stoneMat : roofMat);
+                    rub.transform.rotation = Quaternion.Euler(R(0f, 360f), R(0f, 360f), R(0f, 360f));
+                    Object.DestroyImmediate(rub.GetComponent<Collider>());
+                }
+            }
+
+        // Giant chandelier: the library one, scaled up 3x from its centre.
+        var ch = Graybox.Group(g, "GiantChandelier");
+        ch.position = c + Vector3.up * 15f;
+        Chandelier(ch, ch.position, ch.position.y + (ArenaTop - ch.position.y) / 3f);
+        ch.localScale = Vector3.one * 3f;
+        PointLight(g, "ArenaLight", c + Vector3.up * 13f, Candlelight, 45f, 2.2f, true, 0.06f);
+
+        BrokenSpiral(g, c + new Vector3(26f, 13f, 0f), Quaternion.Euler(0f, 20f, 45f), rng);       // floating, tilted 45 deg
+        BrokenSpiral(g, c + new Vector3(-29f, 2f, -4f), Quaternion.Euler(84f, 8f, 0f), rng);      // crashed along the left wall
+
+        // Mess: torn carpets, scorch marks, books everywhere.
+        for (int i = 0; i < 14; i++)
+        {
+            Vector3 p = c + Quaternion.Euler(0f, R(0f, 360f), 0f) * Vector3.forward * R(3f, 24f);
+            var rug = Box(g, "RugPiece", p + Vector3.up * 0.01f, new Vector3(R(2f, 4f), 0.02f, R(2f, 5f)), rugMat, false, R(0f, 360f));
+            Object.DestroyImmediate(rug.GetComponent<Collider>());
+        }
+        for (int i = 0; i < 25; i++)
+        {
+            Vector3 p = c + Quaternion.Euler(0f, R(0f, 360f), 0f) * Vector3.forward * R(0f, 27f);
+            var s = Box(g, "Scorch", p + Vector3.up * 0.012f, new Vector3(R(1f, 3.5f), 0.02f, R(1f, 3.5f)), sootMat, false, R(0f, 360f));
+            Object.DestroyImmediate(s.GetComponent<Collider>());
+        }
+        string[] books = { Dungeon + "Book_09.prefab", Olive + "Book-closed 10.prefab", Olive + "Book-closed 12.prefab", Olive + "Book-closed 14.prefab", Olive + "Book-open 2.prefab" };
+        var debris = Graybox.Group(g, "ArenaBooks");
+        for (int i = 0; i < 260; i++)
+        {
+            Vector3 p = c + Quaternion.Euler(0f, R(0f, 360f), 0f) * Vector3.forward * Mathf.Sqrt(R(0.02f, 1f)) * 28f;
+            p.y = y0 + 0.02f;
+            string k = books[rng.Next(books.Length)];
+            var b = Prop(debris, k, p, R(0f, 360f), k.Contains("Book_09") ? R(2.6f, 3.4f) : R(1.8f, 2.4f));
+            if (b != null && rng.NextDouble() < 0.6) b.transform.rotation *= Quaternion.Euler(R(-40f, 40f), 0f, R(-45f, 45f));
+        }
+        MergeByMaterial(debris, 30f);
+
+        // Fallen wizards just inside the door (clear of the door leaves' swing).
+        float[] xs = { -7f, -3.5f, 1.5f, 5f, 8.5f, -9.5f };
+        for (int i = 0; i < xs.Length; i++)
+            FallenWizard(g, new Vector3(xs[i] + R(-0.8f, 0.8f), y0, HallEnd + 8f + R(0f, 5f)), R(0f, 360f));
+    }
+
+    // A wrecked spiral staircase: column and steps (some missing), built upright at base then tipped by rot.
+    // Steps keep their colliders so you can stand on them.
+    private static void BrokenSpiral(Transform parent, Vector3 basePoint, Quaternion rot, System.Random rng)
+    {
+        var g = Graybox.Group(parent, "BrokenStaircase");
+        g.position = basePoint;
+        const int steps = 22;
+        const float rise = 13f / 36f;
+        var column = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        column.name = "Column";
+        column.transform.SetParent(g, false);
+        column.transform.position = basePoint + Vector3.up * (steps * rise * 0.5f);
+        column.transform.localScale = new Vector3(2f, steps * rise * 0.5f, 2f);
+        column.GetComponent<Renderer>().sharedMaterial = stoneMat;
+        for (int i = 0; i < steps; i++)
+        {
+            if (rng.NextDouble() < 0.2) continue;   // broken off
+            float a = (i + 0.5f) * 20f;
+            Vector3 dir = Quaternion.Euler(0f, a, 0f) * Vector3.forward;
+            Box(g, "Step", basePoint + dir * 2.9f + Vector3.up * ((i + 1) * rise - 0.12f), new Vector3(1.35f, 0.24f, 3.8f), shelfWoodMat, false, a);
+            if (rng.NextDouble() < 0.6)
+                Object.DestroyImmediate(Box(g, "RailPost", basePoint + dir * 4.7f + Vector3.up * ((i + 1) * rise + 0.5f), new Vector3(0.08f, 1f, 0.08f), ironMat).GetComponent<Collider>());
+        }
+        g.rotation = rot;
+    }
+
+    // A dead wizard: the player's model in another colour, lying on the floor (no animator: it stays in its rest pose).
+    private static void FallenWizard(Transform parent, Vector3 pos, float yaw)
+    {
+        var src = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Standout7/LOFRE_Player_01/Prefabs/Player_01.prefab");
+        var go = (GameObject)PrefabUtility.InstantiatePrefab(src, parent);
+        PrefabUtility.UnpackPrefabInstance(go, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+        go.name = "FallenWizard";
+        for (int pass = 0; pass < 3; pass++)   // components that others depend on go on a later pass
+            foreach (var comp in go.GetComponentsInChildren<Component>(true))
+                if (!(comp is Transform) && !(comp is MeshFilter) && !(comp is Renderer)) Object.DestroyImmediate(comp);
+        var robe = Mat("L3_FallenWizard", new Color(0.55f, 0.4f, 0.85f));   // purple tint over the player's texture
+        robe.mainTexture = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Standout7/LOFRE_Player_01/Texture/T_Lowpo.png");
+        foreach (var r in go.GetComponentsInChildren<Renderer>()) r.sharedMaterial = robe;
+        go.transform.localScale = Vector3.one * 1.3f;
+        go.transform.SetPositionAndRotation(pos + Vector3.up * 0.3f, Quaternion.Euler(0f, yaw, 0f) * Quaternion.Euler(-90f, 0f, 0f));   // on its back
+        foreach (var t in go.GetComponentsInChildren<Transform>()) t.gameObject.isStatic = true;
+        var s = Box(parent, "Scorch", pos + Vector3.up * 0.013f, new Vector3(2.2f, 0.02f, 2.2f), sootMat, false, yaw);
+        Object.DestroyImmediate(s.GetComponent<Collider>());
+    }
+
+    /// <summary>The boss (EnemySetup.SetupBoss prefab) facing the door, and the BossFight that runs the arena.</summary>
+    private static void PlaceBoss(Transform arena, GateDoor door)
+    {
+        foreach (var old in arena.GetComponentsInChildren<Boss>(true)) Object.DestroyImmediate(old.gameObject);
+        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(EnemySetup.BossPath);
+        if (prefab == null) { EnemySetup.SetupBoss(); prefab = AssetDatabase.LoadAssetAtPath<GameObject>(EnemySetup.BossPath); }
+        var boss = (GameObject)PrefabUtility.InstantiatePrefab(prefab, arena);
+        boss.transform.SetPositionAndRotation(ArenaC + new Vector3(0f, 1.05f, 0f), Quaternion.Euler(0f, 180f, 0f));   // middle of the circle
+        var oldR = arena.Find("BossRespawn");
+        if (oldR != null) Object.DestroyImmediate(oldR.gameObject);
+        var respawn = new GameObject("BossRespawn").transform;   // in the hallway, facing the door
+        respawn.SetParent(arena, false);
+        respawn.position = new Vector3(0f, BalconyY + 1.05f, HallEnd - 8f);
+        var old2 = arena.Find("BossFight");
+        if (old2 != null) Object.DestroyImmediate(old2.gameObject);
+        var fight = new GameObject("BossFight").AddComponent<BossFight>();   // its position is the arena centre
+        fight.transform.SetParent(arena, false);
+        fight.transform.position = ArenaC;
+        fight.boss = boss.GetComponent<Boss>();
+        fight.door = door;
+        fight.radius = ArenaR;
+        fight.hallwayRespawn = respawn;
     }
 }

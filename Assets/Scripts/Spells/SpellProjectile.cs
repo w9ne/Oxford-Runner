@@ -101,6 +101,12 @@ public class SpellProjectile : MonoBehaviour
             homingTarget = PickHomingTarget();
             if (homingTarget == null) return;
         }
+        if (lockedTarget is Enemy e && e.lockHoldTime > 0f && Time.time - launchTime > e.lockHoldTime)
+        {
+            lockedTarget = null;   // lost the lock: plain homing from here (its cone and range still apply)
+            homingTarget = null;
+            return;
+        }
         Vector3 aim = Targeting.Center(homingTarget);
         bool locked = lockedTarget != null && homingTarget == lockedTarget;
         if (locked)
@@ -124,6 +130,7 @@ public class SpellProjectile : MonoBehaviour
         info.slowAmount = spell.slowAmount;
         info.slowDuration = spell.slowDuration;
         info.freezeDuration = spell.freezeDuration;
+        info.homing = spell.homingTurnRate > 0f || lockedTarget != null;
         if (spell.knockback > 0f) info.knockback = (transform.forward + Vector3.up * 0.3f).normalized * spell.knockback;
         return info;
     }
@@ -133,7 +140,7 @@ public class SpellProjectile : MonoBehaviour
     /// can't be parried again, and gets a speed / damage boost plus a colour change.
     /// </summary>
     public void Reflect(Vector3 position, Vector3 direction, Transform newOwner, Faction newFaction,
-                        float speedMultiplier, float damageMultiplier, Color tint, GameObject impactVfx = null)
+                        float speedMultiplier, float damageMultiplier, Color tint, GameObject impactVfx = null, bool parryable = false)
     {
         if (impactVfx != null) impactOverride = impactVfx;   // parried bolts blow up instead of fizzling
         transform.SetPositionAndRotation(position, Quaternion.LookRotation(direction));
@@ -142,7 +149,7 @@ public class SpellProjectile : MonoBehaviour
         Speed *= speedMultiplier;
         Damage *= damageMultiplier;
         ImpactRadius = Mathf.Max(ImpactRadius * 1.25f, 2.5f);   // a real blast
-        Parryable = false;
+        Parryable = parryable;   // the boss's parries can be parried back
         WasReflected = true;
         homingTarget = null;
         dieTime = Time.time + spell.lifetime;
@@ -271,6 +278,7 @@ public class SpellProjectile : MonoBehaviour
 
         if (exploded)
         {
+            Sfx.At(spell.hitSound, point, 0.8f);
             DealAreaDamage(point);
             SpawnImpactVfx(point, normal);
         }

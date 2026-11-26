@@ -23,6 +23,7 @@ public class Ignite : MonoBehaviour
     {
         if (lit) return;
         lit = true;
+        Sfx.At(Sfx.Bank.torch, transform.position, 0.6f);
         StartCoroutine(Burn());
     }
 

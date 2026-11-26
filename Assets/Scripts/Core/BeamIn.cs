@@ -17,6 +17,7 @@ public class BeamIn : MonoBehaviour
     /// <summary>Hides <paramref name="target"/> now and beams it in after <paramref name="delay"/> seconds.</summary>
     public static void Play(GameObject target, float delay = 0f)
     {
+        if (target != null) Sfx.At(Sfx.Bank.beamIn, target.transform.position, 0.5f);
         if (target == null) return;
         target.SetActive(false);
         var go = new GameObject("BeamIn");

@@ -7,6 +7,7 @@ using UnityEngine.UI;
 /// End-of-level rank screen (shown by SceneExit when you enter a campaign level's portal). Time stops, the
 /// level's style score counts up and a bar fills from rank D to the rank earned; the letter pops at each rank
 /// it passes. Click / Space / Enter continues to the next scene (health carries over).
+/// With autoClose &gt; 0 (Level 3's torch hall) play goes on underneath and the card closes itself, no scene change.
 /// Rank = score as a share of the level's SSS score (<see cref="SssScore"/>).
 /// </summary>
 public class LevelResults : MonoBehaviour
@@ -32,12 +33,12 @@ public class LevelResults : MonoBehaviour
     private string nextScene;
     private PlayerHealth health;
     private int score, best, sss, rank = -1;
-    private float started, rankPop;
+    private float started, rankPop, autoClose;
     private Text letter, rankName, scoreText, hint;
     private RectTransform fill;
     private Image fillImage;
 
-    public static void Show(string nextScene, PlayerHealth health)
+    public static void Show(string nextScene, PlayerHealth health, float autoClose = 0f)
     {
         var go = new GameObject("LevelResults");
         var r = go.AddComponent<LevelResults>();
@@ -48,10 +49,13 @@ public class LevelResults : MonoBehaviour
         r.best = style != null ? style.SavedBest : 0;
         string scene = SceneManager.GetActiveScene().name;
         r.sss = SssScore.TryGetValue(scene, out int s) ? s : 10000;
+        PlayerPrefs.SetInt(VictoryScreen.LastKey(scene), r.score);   // this run's score, for the victory screen
         var level = FindAnyObjectByType<LevelManager>();
         r.Build(level != null ? level.LevelName : scene, Time.timeSinceLevelLoad);
+        r.autoClose = autoClose;
+        GameFlow.ShowingResults = true;   // no pause menu over the card
+        if (autoClose > 0f) return;   // keep playing
 
-        GameFlow.ShowingResults = true;
         GameFlow.Paused = true;   // no look / casting; GameFlow.Load clears both
         Time.timeScale = 0f;
     }
@@ -60,7 +64,7 @@ public class LevelResults : MonoBehaviour
     {
         var canvas = MenuUI.Canvas("LevelResultsCanvas", 60).transform;
         canvas.SetParent(transform, false);
-        MenuUI.FullScreen(canvas, "Dim", new Color(0f, 0f, 0f, 0.75f));
+        MenuUI.FullScreen(canvas, "Dim", new Color(0f, 0f, 0f, PortalFall.Instance != null ? 0.2f : 0.75f));   // falling: keep the rune wall visible
         var panel = MenuUI.Rect(canvas, "Panel", Vector2.zero, new Vector2(900f, 640f), MenuUI.PanelColor);
 
         MenuUI.Label(panel, "LEVEL CLEARED", 60, new Vector2(0f, 250f), new Vector2(860f, 80f), Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -113,12 +117,20 @@ public class LevelResults : MonoBehaviour
         fillImage.color = c;
 
         if (t < 1f) return;
-        hint.text = (score > best ? "NEW BEST!     " : $"BEST {best:N0}     ") + "CLICK OR PRESS SPACE TO CONTINUE";
-        if (Time.unscaledTime - started > FillTime + 0.5f
+        if (autoClose > 0f)
+        {
+            hint.text = score > best ? "NEW BEST!" : $"BEST {best:N0}";
+            if (Time.unscaledTime - started > autoClose) { GameFlow.ShowingResults = false; Destroy(gameObject); }
+            return;
+        }
+        var fall = PortalFall.Instance;
+        bool ready = fall == null || fall.Ready;
+        hint.text = (score > best ? "NEW BEST!     " : $"BEST {best:N0}     ") + (ready ? "PRESS SPACE TO DROP IN" : "LOADING...");
+        if (ready && Time.unscaledTime - started > FillTime + 0.5f
             && (Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return)))
         {
             enabled = false;
-            GameFlow.AdvanceTo(nextScene, health);
+            if (fall != null) fall.Drop(); else GameFlow.AdvanceTo(nextScene, health);
         }
     }
 }

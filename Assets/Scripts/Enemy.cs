@@ -17,6 +17,9 @@ using UnityEngine;
 public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
 {
     private static readonly int ColorId = Shader.PropertyToID("_Color");
+    private static readonly int MoveXId = Animator.StringToHash("MoveX"), MoveYId = Animator.StringToHash("MoveY"),
+                                RunSpeedId = Animator.StringToHash("RunSpeed"), AttackId = Animator.StringToHash("Attack");
+    private Animator anim;   // rigged model (EnemyBody controller): runs by velocity, plays a cast / swing on each wind-up
 
     /// <summary>All living, enabled enemies (used by the missile lock-on).</summary>
     public static readonly List<Enemy> All = new List<Enemy>();
@@ -62,6 +65,20 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
     [SerializeField] private float dashCooldown = 5f;
     [SerializeField] private float dashSpeed = 16f;
     [SerializeField] private float dashDuration = 0.25f;
+
+    [Header("Boss")]
+    [Tooltip("A separate brain (Boss) drives movement and attacks; this script only does damage, status and colours.")]
+    public bool brainControlled;
+    [Tooltip("Off: Die() leaves the body for the brain to blow up.")]
+    public bool destroyOnDeath = true;
+    [Tooltip("Takes no damage (the boss until its health bar has filled).")]
+    public bool invulnerable;
+    [Tooltip("Damage multiplier for homing projectiles (Arcane Missiles), e.g. the boss shrugs most of them off.")]
+    public float homingDamageScale = 1f;
+    [Tooltip("Seconds a missile lock holds on this enemy before it breaks (0 = until it dies); missiles already in flight lose it too.")]
+    public float lockHoldTime;
+    [Tooltip("Missile lock-on takes this many times longer on this enemy.")]
+    public float lockTimeScale = 1f;
 
     public event Action<Enemy> Died;
 
@@ -137,10 +154,12 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
         {
             var face = transform.Find("Face");
             if (face != null) telegraphRenderer = face.GetComponent<Renderer>();
+            else telegraphRenderer = GetComponentInChildren<SkinnedMeshRenderer>();   // rigged model: the whole body glows
         }
         if (telegraphRenderer != null && telegraphRenderer.sharedMaterial != null && telegraphRenderer.sharedMaterial.HasProperty(ColorId))
             telegraphBase = telegraphRenderer.sharedMaterial.GetColor(ColorId);
         if (weapon != null) weaponRest = weapon.localRotation;
+        anim = GetComponentInChildren<Animator>();
         avoidSide = UnityEngine.Random.value < 0.5f ? -1 : 1;
         strafeSign = avoidSide;
     }
@@ -150,7 +169,7 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
 
     private void Start()
     {
-        if (GetComponent<WorldHealthBar>() == null) gameObject.AddComponent<WorldHealthBar>();
+        if (!brainControlled && GetComponent<WorldHealthBar>() == null) gameObject.AddComponent<WorldHealthBar>();   // the boss has its own bar
         var player = GameObject.FindGameObjectWithTag("Player");
         if (player != null)
         {
@@ -200,6 +219,7 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
             if (!rb.isKinematic) rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
             return;
         }
+        if (brainControlled) return;
 
         Vector3 toTarget = target.position - transform.position;
         toTarget.y = 0f;
@@ -346,7 +366,7 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
     {
         if (IsDead || GameFlow.PlayerDead) return;   // no attacks once the player is dead
         UpdateFreeze();
-        if (!IsFrozen && !IsStunned)
+        if (!IsFrozen && !IsStunned && !brainControlled)
         {
             UpdateSight();
             if (melee) UpdateMelee(); else UpdateAttack();
@@ -354,6 +374,7 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
         }
         UpdateWeapon();
         UpdateColors();
+        UpdateAnimation();
     }
 
     private void UpdateSight()
@@ -371,7 +392,7 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
 
         if (windupStart < 0f)
         {
-            if (Time.time >= nextShotTime && CanSeeTarget()) windupStart = Time.time;
+            if (Time.time >= nextShotTime && CanSeeTarget()) { windupStart = Time.time; if (anim != null) anim.SetTrigger(AttackId); }
             return;
         }
 
@@ -394,6 +415,7 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
         {
             if (Time.time >= nextShotTime && dist <= meleeRange && Mathf.Abs(target.position.y - transform.position.y) < 2f)
                 windupStart = Time.time;
+                if (anim != null) anim.SetTrigger(AttackId);
             return;
         }
 
@@ -402,6 +424,7 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
             windupStart = -1f;
             nextShotTime = Time.time + meleeCooldown;
             swingTime = Time.time;
+            Sfx.At(Sfx.Bank.meleeSwing, transform.position, 0.8f);
             // Lands if you're still in reach and roughly in front.
             bool inReach = dist <= meleeRange + 0.6f && Vector3.Angle(transform.forward, to) < 75f
                            && Mathf.Abs(target.position.y - transform.position.y) < 2f;
@@ -411,6 +434,19 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
     }
 
     // Sword: raised back during the wind-up, quick chop on the swing, then back to rest.
+    // Same locomotion blend as the player's body: local velocity picks the run direction; frozen = stopped dead.
+    private void UpdateAnimation()
+    {
+        if (anim == null || brainControlled) return;   // the boss animates itself
+        Vector3 v = rb.isKinematic ? Vector3.zero : transform.InverseTransformDirection(rb.linearVelocity);
+        float speed = new Vector2(v.x, v.z).magnitude;
+        Vector2 blend = speed > 0.2f && !IsStunned ? new Vector2(v.x, v.z) / Mathf.Max(speed, 5.5f) : Vector2.zero;
+        anim.SetFloat(MoveXId, blend.x, 0.1f, Time.deltaTime);
+        anim.SetFloat(MoveYId, blend.y, 0.1f, Time.deltaTime);
+        anim.SetFloat(RunSpeedId, Mathf.Clamp(speed / 5.5f, 1f, 1.8f));
+        anim.speed = IsFrozen ? 0f : SpeedScale;
+    }
+
     private void UpdateWeapon()
     {
         if (weapon == null) return;
@@ -492,7 +528,7 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
     // ================================================================== damage
     public void TakeDamage(DamageInfo info)
     {
-        if (IsDead || info.source == Faction.Enemy) return;
+        if (IsDead || info.source == Faction.Enemy || invulnerable) return;
         if (onlyReflectedDamage && !info.reflected) { hitFlash = 0.3f; return; }   // shrug it off
         // Style: a combo is a hit on someone already frozen / stunned by another spell; an airshot hits someone off the ground.
         bool combo = (IsFrozen || IsStunned) && info.freezeDuration <= 0f && info.stunDuration <= 0f;
@@ -508,7 +544,8 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
             staggerUntil = Time.time + 0.45f + info.knockback.magnitude * 0.03f;   // big hits fly further
             dashUntil = 0f;
         }
-        TakeDamage(info.amount);
+        TakeDamage(info.homing ? info.amount * homingDamageScale : info.amount);
+        if (!IsDead) Sfx.At(Sfx.Bank.enemyHit, info.point, 0.7f);
         if (info.freezeDuration > 0f && !IsDead) Freeze(info.freezeDuration);   // the freezing hit itself isn't doubled
         if (info.stunDuration > 0f && !IsDead)
         {
@@ -522,6 +559,22 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
     // Hovering / turret enemies are kinematic and never count. The ray starts inside our own collider, so it skips it.
     private bool IsAirborne() =>
         !rb.isKinematic && !Physics.Raycast(new Vector3(capsule.bounds.center.x, capsule.bounds.min.y + 0.1f, capsule.bounds.center.z), Vector3.down, 0.6f, ~0, QueryTriggerInteraction.Ignore);
+
+    /// <summary>Stopped in place, no attacks (also used by the boss's counter-parry).</summary>
+    public void Stun(float duration)
+    {
+        stunUntil = Mathf.Max(stunUntil, Time.time + duration);
+        windupStart = -1f;
+        dashUntil = 0f;
+    }
+
+    /// <summary>Back to full health with no status effects (boss fight reset).</summary>
+    public void ResetState()
+    {
+        Health = maxHealth;
+        stunUntil = frozenUntil = slowUntil = staggerUntil = 0f;
+        UpdateFreeze();
+    }
 
     public void Freeze(float duration)
     {
@@ -547,7 +600,7 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
 
     public void TakeDamage(float amount)
     {
-        if (IsDead) return;
+        if (IsDead || invulnerable) return;
         if (IsFrozen) amount *= frozenDamageMultiplier;
         Health -= amount;
         hitFlash = 1f;
@@ -558,9 +611,10 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
     {
         if (IsDead) return;
         IsDead = true;
+        Sfx.At(Sfx.Bank.enemyDeath, transform.position, 0.9f);
         All.Remove(this);
         Died?.Invoke(this);
-        Destroy(gameObject);
+        if (destroyOnDeath) Destroy(gameObject);
     }
 
     // ================================================================== visual feedback
@@ -583,7 +637,7 @@ public class Enemy : MonoBehaviour, IDamageable, IHealthReadout
         for (int i = 0; i < renderers.Length; i++)
         {
             var r = renderers[i];
-            if (r == null || r == telegraphRenderer) continue;
+            if (r == null || (r == telegraphRenderer && charge > 0f)) continue;   // a body-wide telegraph wins while charging
             r.GetPropertyBlock(block);
             Color baseCol = IsFrozen ? Color.Lerp(baseColors[i], FrozenTint, 0.85f)
                           : Time.time < slowUntil ? Color.Lerp(baseColors[i], SlowTint, 0.6f) : baseColors[i];

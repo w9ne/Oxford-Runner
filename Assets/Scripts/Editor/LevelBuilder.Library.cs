@@ -68,9 +68,9 @@ public static partial class LevelBuilder
         // Area 2: the staircase comes down when the ground floor is cleared; a hatch shuts over it once you're up.
         var a2 = Group("B_UpperHall");
         var stairs = SpiralStaircase(a2, new Vector3(0f, 0f, RotundaZ));
-        var portal = UpperHall(a1, a2, stairs);
+        UpperHall(a1, a2, stairs);
 
-        Finish("Level 3 - The Library", new Vector3(0f, 0f, 4f), 0f, portal, killY: -20f, killCenterZ: 60f, runeGlow: 0.5f);   // dim: the library is dark, full glow is glaring
+        Finish("Level 3 - The Library", new Vector3(0f, 0f, 4f), 0f, null, killY: -20f, killCenterZ: 60f, runeGlow: 0.5f);   // dim: the library is dark, full glow is glaring
     }
 
     // ------------------------------------------------------------------ lighting

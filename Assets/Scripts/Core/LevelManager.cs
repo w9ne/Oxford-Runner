@@ -148,6 +148,7 @@ public class LevelManager : MonoBehaviour
                 && !(e.triggerIgnore.size != Vector3.zero && e.triggerIgnore.Contains(player.position)))
             {
                 e.started = true;
+                Sfx.Play(Sfx.Bank.areaStart, 0.7f, 0f);
                 if (e.checkpoint != null) Checkpoints.Set(e.checkpoint.position, e.checkpoint.eulerAngles.y);
                 foreach (var c in e.closeOnEnter)
                     if (c != null)
@@ -321,6 +322,7 @@ public class LevelManager : MonoBehaviour
 
     private void OpenPortal()
     {
+        Sfx.Play(Sfx.Bank.levelClear, 0.9f, 0f);
         Cleared = true;
         if (exitPortal != null) exitPortal.SetActive(true);
         bannerUntil = Time.time + 4f;
@@ -360,7 +362,7 @@ public class LevelManager : MonoBehaviour
         titleText.text = Cleared ? "LEVEL CLEARED"
                        : current > 0 ? "AREA CLEARED - THE WAY IS OPEN"
                        : levelName.ToUpperInvariant();
-        if (Cleared) { objectiveText.text = "The portal is open. Find it to move on."; return; }
+        if (Cleared) { objectiveText.text = exitPortal != null ? "The portal is open. Find it to move on." : "Head down the hall."; return; }
         if (area == null) return;
         string goal = area.started ? "Defeat every enemy to open the way on" : "Head into the next area";
         objectiveText.text = $"Area {current + 1}/{encounters.Count}: {area.name}     {goal}     Enemies: {area.alive.Count}";

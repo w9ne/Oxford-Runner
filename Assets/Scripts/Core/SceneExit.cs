@@ -21,7 +21,7 @@ public class SceneExit : MonoBehaviour
         string nextScene = GameFlow.ResolveExit(this.nextScene);   // tutorial-only runs return to the menu
         var health = other.GetComponentInParent<PlayerHealth>();
         if (TutorialManager.Instance != null) TutorialManager.Instance.Complete(nextScene);
-        else if (StyleMeter.Instance != null) LevelResults.Show(nextScene, health);   // rank screen, then carries health over
+        else if (StyleMeter.Instance != null) { PortalFall.Begin(nextScene, health); LevelResults.Show(nextScene, health); }   // fall + rank card, then drop into the next level
         else GameFlow.AdvanceTo(nextScene, health);
     }
 }
